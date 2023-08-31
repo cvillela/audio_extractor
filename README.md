@@ -16,7 +16,7 @@ Repo configured with useful functions for preprocessing, segmenting and creating
  ```
     pip install git+https://github.com/rodrigo-castellon/jukemirlib.git
  ```
-### Current Features:
+## Current Features:
  - Efficiently segments audio files in given directory with length, arbitrary overlap between samples + padding/cropping
  - Creates splits for train/test/val
  - Jukebox Embedding Extractor
@@ -31,3 +31,7 @@ Repo configured with useful functions for preprocessing, segmenting and creating
 - [ ] Add audio Denoise + Silence
 - [ ] Add Music Emotion Recognition Pipeline
 - [ ] Bandwith Extension / Audio-Super resolution?
+
+### BUGS
+ - Handle audio with varying sample_rates -> load with librosa setting the sample_rate prior
+
