@@ -8,7 +8,11 @@ Repo configured with useful functions for preprocessing, segmenting and creating
    conda activate ras_audio
 ```
 - Be sure to have [torch>=2.0 and torchaudio>=2.0 installed](https://pytorch.org/get-started/locally/)
- - For jukebox embeddings - Install Jukemirlib from the github repo:
+- Install the requirements
+ ```
+    pip install -r ./requirements.txt
+ ```
+- For jukebox embeddings - Install Jukemirlib from the github repo:
  ```
     pip install git+https://github.com/rodrigo-castellon/jukemirlib.git
  ```
