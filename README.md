@@ -12,7 +12,7 @@ Repo configured with useful functions for preprocessing, segmenting and creating
  ```
     pip install -r ./requirements.txt
  ```
-- For jukebox embeddings - Install Jukemirlib from the github repo:
+- For jukebox embeddings - Install [Jukemirlib](https://github.com/rodrigo-castellon/jukemirlib)  from the github repo:
  ```
     pip install git+https://github.com/rodrigo-castellon/jukemirlib.git
  ```
