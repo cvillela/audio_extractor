@@ -9,8 +9,9 @@ Repo configured with useful functions for preprocessing, segmenting and creating
 ```
 - Be sure to have [torch>=2.0 and torchaudio>=2.0 installed](https://pytorch.org/get-started/locally/)
  - For jukebox embeddings - Install Jukemirlib from the github repo:
-    `pip install git+https://github.com/rodrigo-castellon/jukemirlib.git`
-
+ ```
+    pip install git+https://github.com/rodrigo-castellon/jukemirlib.git
+ ```
 ### Current Features:
  - Efficiently segments audio files in given directory with length, arbitrary overlap between samples + padding/cropping
  - Creates splits for train/test/val
