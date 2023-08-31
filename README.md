@@ -1,6 +1,14 @@
 # ras_audio_extractor
 Repo configured with useful functions for preprocessing, segmenting and creating audio datasets, as well as extracting embeddings.
 
+## Installation
+ - Create a conda environment with
+   `conda env create -f environment.yml`
+ - Activate the environment:
+   `conda activate ras_audio`
+ - For jukebox embeddings - Install Jukemirlib from the github repo:
+   `pip install git+https://github.com/rodrigo-castellon/jukemirlib.git`
+
 ### Current Features:
  - Efficiently segments audio files in given directory with length, arbitrary overlap between samples + padding/cropping
  - Creates splits for train/test/val
