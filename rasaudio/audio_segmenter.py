@@ -63,12 +63,6 @@ def segment_audio(
     if n_channels is not None:
         audio = audio.set_channels(n_channels) # convert to mono
     
-    # remove noise
-    
-    # remove silence
-    if desilence:
-        audio = remove_silence(audio)
-    
     # Audio info dict
     audio_metadata = get_audio_metadata(audio, file_name) 
     audio_metadata["title"] = file_name.split('.')[0]
