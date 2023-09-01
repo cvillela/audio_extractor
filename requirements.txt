@@ -9,3 +9,4 @@ scipy==1.9.3
 tqdm
 transformers==4.29.2
 Unidecode==1.1.1
+split-folders

@@ -86,7 +86,6 @@ def process_audio(file_path, file_name, dirname, output_dir_samples, output_dir_
         file_name = unidecode(file_name.lower())
         dirname = unidecode(dirname.lower())
         
-        
         if 'dvorak' in file_name:
             curr_json["description"] = curr_json["description"] + 'dvorak, '
             curr_json["keywords"] = curr_json["keywords"] + 'dvorak, '
