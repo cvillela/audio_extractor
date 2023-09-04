@@ -4,8 +4,8 @@ Repo configured with useful functions for preprocessing, segmenting and creating
 ## Installation
  - Create a conda environment and activate it:
 ```
-   conda create --name ras_audio
-   conda activate ras_audio
+   conda create --name audioext
+   conda activate audioext
 ```
 - Be sure to have [torch>=2.0 and torchaudio>=2.0 installed](https://pytorch.org/get-started/locally/)
 - Install the requirements
