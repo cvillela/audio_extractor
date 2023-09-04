@@ -86,10 +86,22 @@ def main(args):
 
     # Check if out directory exists, if not, create it
     os.makedirs(args.output_dir, exist_ok=True)
-    
 
     file_paths = list_wavs_from_dir(args.samples_dir)
-    extract_from_files(file_paths, args.output_dir, batch_size=4, meanpool=False, mult_factor=100, emb_chunk_size=1000)
+    
+    seg_dict = {
+        "segment_length_s": args.seg_len,
+        "cutoff": args.cutoff,
+        "overlap": args.overlap,
+        "target_sr": JUKEBOX_SR,
+        "n_channels": 1,
+        "normalize_loudness": True,
+        "normalize_amplitude": True
+    }
+
+    extract_from_files(
+        file_paths, args.output_dir, batch_size=args.batch_size, meanpool=args.meanpool,
+        mult_factor=args.mult_factor, emb_chunk_size=args.chunk_size, segment_kwargs=seg_dict)
 
 
 if __name__ == "__main__":
