@@ -87,8 +87,7 @@ def main(args):
     # Check if out directory exists, if not, create it
     os.makedirs(args.output_dir, exist_ok=True)
 
-    file_paths = list_wavs_from_dir(args.samples_dir)
-    
+    # specify segmentation parameters     
     seg_dict = {
         "segment_length_s": args.seg_len,
         "cutoff": args.cutoff,
@@ -98,6 +97,9 @@ def main(args):
         "normalize_loudness": True,
         "normalize_amplitude": True
     }
+    
+    # get file paths from sample dir
+    file_paths = list_wavs_from_dir(args.samples_dir)
 
     extract_from_files(
         file_paths, args.output_dir, batch_size=args.batch_size, meanpool=args.meanpool,
