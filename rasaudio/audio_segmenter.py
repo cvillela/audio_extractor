@@ -8,6 +8,18 @@ import numpy as np
 
 
 def get_audio_metadata(audio):
+    """
+    Generate the audio metadata for the given audio.
+
+    Parameters:
+        audio (AudioSegment): The audio segment for which to retrieve the metadata.
+
+    Returns:
+        dict: A dictionary containing the audio metadata with the following keys:
+            - sample_rate (int): The sample rate of the audio.
+            - channels (int): The number of audio channels.
+            - bytes_per_sample (int): The number of bytes per audio sample. A value of 1 indicates 8 bit, and a value of 2 indicates 16 bit.
+    """
     meta =  {
         "sample_rate": audio.frame_rate,
         "channels": audio.channels, 
@@ -18,27 +30,33 @@ def get_audio_metadata(audio):
 
 
 def save_sample_meta(audio_meta, segment, out_dir):
-    
+    """
+    Save the audio segment and its metadata to the specified output directory.
+
+    Args:
+        audio_meta (dict): Metadata for the audio segment.
+        segment (AudioSegment): Audio segment to be saved.
+        out_dir (str): Output directory where the segment and metadata will be saved.
+    """
     # declare metadata and sample dirs
-    sample_dir = out_dir + '/samples/'
-    meta_dir = out_dir + '/metadata/'
+    sample_dir = os.path.join(out_dir, 'samples')
+    meta_dir = os.path.join(out_dir, 'metadata')
     
-    if not os.path.exists(sample_dir):
-        os.makedirs(sample_dir)
-    if not os.path.exists(meta_dir):
-        os.makedirs(meta_dir)
+    # create sample and metadata directories if they don't exist
+    os.makedirs(sample_dir, exist_ok=True)
+    os.makedirs(meta_dir, exist_ok=True)
     
     sample_name = str(uuid.uuid4())
-    seg_path = os.path.join(sample_dir, sample_name+'.wav')
-    meta_path = os.path.join(meta_dir, sample_name+'.json')
+    seg_path = os.path.join(sample_dir, f'{sample_name}.wav')
+    meta_path = os.path.join(meta_dir, f'{sample_name}.json')
     
-    # here we can insert sample specific information on the metadata
+    # create a copy of audio_meta dictionary to add segment specific information
     segment_meta_dict = audio_meta.copy()
     
-    # Save the segment
+    # Save the segment as a WAV file
     segment.export(seg_path, format='wav')
     
-    # Save the metadata
+    # Save the metadata as a JSON file
     with open(meta_path, 'w', encoding='utf8') as fp:
         json.dump(segment_meta_dict, fp)
         
@@ -47,6 +65,26 @@ def segment_audio(
         file_path, out_dir, segment_length_s=10, target_sr=32000, n_channels=1,
         cutoff='pad', overlap=0.0, normalize=False, denoise=False, desilence=False
     ):
+    """
+    Segment an audio file into smaller segments of a specified length.
+
+    Args:
+        file_path (str): The path to the audio file.
+        out_dir (str): The directory where the segmented audio files will be saved.
+        segment_length_s (float, optional): The length of each segment in seconds. Defaults to 10.
+        target_sr (int, optional): The target sample rate of the audio. Defaults to 32000.
+        n_channels (int, optional): The number of channels in the audio. Defaults to 1.
+        cutoff (str, optional): The method to handle segments that are shorter than segment_length_s. 
+                               Can be 'pad', 'leave', or 'crop'. Defaults to 'pad'.
+        overlap (float, optional): The overlap between consecutive segments as a fraction of segment_length_s. 
+                                   Defaults to 0.0.
+        normalize (bool, optional): Whether to normalize the audio. Defaults to False.
+        denoise (bool, optional): Whether to denoise the audio. Defaults to False.
+        desilence (bool, optional): Whether to remove silence from the audio. Defaults to False.
+
+    Returns:
+        None
+    """
 
     # Get file name without extension for caption
     file_name = os.path.splitext(os.path.basename(file_path))[0]
