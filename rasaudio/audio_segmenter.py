@@ -32,27 +32,26 @@ def get_audio_metadata(audio, filename):
     return meta
         
 def segment_audio(
-        file_path, out_dir, segment_length_s=10, target_sr=32000, n_channels=1,
+        file_path, segment_length_s=10, target_sr=32000, n_channels=1,
         cutoff='pad', overlap=0.0, normalize_loudness=True, normalize_amplitude=True
     ):
     """
-    Segment an audio file into smaller segments of a specified length.
+    Segment an audio file into smaller segments.
 
     Args:
         file_path (str): The path to the audio file.
-        out_dir (str): The directory where the segmented audio files will be saved.
-        segment_length_s (float, optional): The length of each segment in seconds. Defaults to 10.
-        target_sr (int, optional): The target sample rate of the audio. Defaults to 32000.
-        n_channels (int, optional): The number of channels in the audio. Defaults to 1.
-        cutoff (str, optional): The method to handle segments that are shorter than segment_length_s. 
-                               Can be 'pad', 'leave', or 'crop'. Defaults to 'pad'.
-        overlap (float, optional): The overlap between consecutive segments as a fraction of segment_length_s. 
+        segment_length_s (float, optional): The duration of each segment in seconds. Defaults to 10.
+        target_sr (int, optional): The target sample rate for resampling. Defaults to 32000.
+        n_channels (int, optional): The number of audio channels. Defaults to 1.
+        cutoff (str, optional): The strategy for handling segments that are shorter than segment_length_s. 
+                               Possible values are 'pad', 'leave', and 'crop'. Defaults to 'pad'.
+        overlap (float, optional): The amount of overlap between segments as a fraction of segment_length_s. 
                                    Defaults to 0.0.
-        normalize_loudness (bool, optional): Whether to normalize the audio in dB. Defaults to True.
-        normalize_amplitude (bool, optional): Whether to normalize the audio to [-1, 1] amplitude. Defaults to True.
-        
+        normalize_loudness (bool, optional): Whether to normalize the loudness of the audio. Defaults to True.
+        normalize_amplitude (bool, optional): Whether to normalize the amplitude of the audio. Defaults to True.
+
     Returns:
-        None
+        list: A list of segmented audio as np.float32 and its metadata.
     """
 
     # Get file name without extension for caption
@@ -84,6 +83,9 @@ def segment_audio(
     if normalize_amplitude:
         np_audio = normalize_unit(np_audio)
 
+    segment_list = []
+    meta_list = []
+    
     # segment into segment_length_s samples
     segment_length_samples = segment_length_s * audio.frame_rate
     step = int((1-overlap)*segment_length_samples)
@@ -98,9 +100,9 @@ def segment_audio(
             if cutoff=='pad': # pad with silence (0 amplitude)
                 if len(segment) < 0.8*segment_length_samples: # pad at most 20% of the signal
                     break
-                pad_len = segment_length_samples - len(segment)
-        
+                
                 # Pad with 0s
+                pad_len = segment_length_samples - len(segment)
                 pad = np.zeros(pad_len)
                 segment = np.concatenate((segment,pad), axis=0)
             
@@ -109,8 +111,11 @@ def segment_audio(
             
             elif cutoff=='crop': # discard smaller sample
                 break
-            
-        save_sample_meta(audio_metadata, segment, out_dir)
+        
+        segment_list.append(segment)
+        meta_list.append(audio_metadata)
+
+    return segment_list, meta_list
 
 def save_sample_meta(audio_meta, segment, out_dir):
     """
