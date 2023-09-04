@@ -17,9 +17,9 @@ Repo configured with useful functions for preprocessing, segmenting and creating
     pip install git+https://github.com/rodrigo-castellon/jukemirlib.git
  ```
 - Install ffmpeg
-  ```
-  conda install -c conda-forge ffmpeg
-  ```
+ ```
+   conda install -c conda-forge ffmpeg
+ ```
 ## Current Features:
  - Efficiently segments audio files in given directory with length, arbitrary overlap between samples + padding/cropping
  - Creates splits for train/test/val
