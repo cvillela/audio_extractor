@@ -51,7 +51,7 @@ def segment_audio(
         normalize_amplitude (bool, optional): Whether to normalize the amplitude of the audio. Defaults to True.
 
     Returns:
-        list: A list of segmented audio as np.float32 and its metadata.
+        list: A list of segmented audio as np.float32 and a list of corresponding metadata.
     """
 
     # Get file name without extension for caption
