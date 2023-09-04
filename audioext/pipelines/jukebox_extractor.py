@@ -4,8 +4,8 @@ import numpy as np
 import os
 import argparse
 
-from audioext.audio_segmenter import segment_audio
-from audioext.audio_utils import list_wavs_from_dir
+from ..audio.audio_segmenter import segment_audio
+from ..audio.audio_utils import list_wavs_from_dir
 
 JUKEBOX_SR = 44100
 CTX_WINDOW_LENGTH = 1048576

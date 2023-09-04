@@ -2,7 +2,6 @@ import numpy as np
 from pydub import AudioSegment, effects, silence
 import io
 import scipy.io.wavfile
-import array
 
 
 def remove_silence(audio_segment):

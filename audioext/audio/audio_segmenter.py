@@ -7,7 +7,7 @@ import json
 import numpy as np
 import scipy.io.wavfile
 
-from audio_processer import normalize_unit, audiosegment_to_ndarray_32
+from .audio_processer import normalize_unit, audiosegment_to_ndarray_32
 
 def get_audio_metadata(audio, filename):
     """
