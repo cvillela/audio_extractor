@@ -33,7 +33,7 @@ def get_audio_metadata(audio, filename):
         
 def segment_audio(
         file_path, out_dir, segment_length_s=10, target_sr=32000, n_channels=1,
-        cutoff='pad', overlap=0.0, normalize_loudness=True, normalize_unit=True
+        cutoff='pad', overlap=0.0, normalize_loudness=True, normalize_amplitude=True
     ):
     """
     Segment an audio file into smaller segments of a specified length.
@@ -48,10 +48,9 @@ def segment_audio(
                                Can be 'pad', 'leave', or 'crop'. Defaults to 'pad'.
         overlap (float, optional): The overlap between consecutive segments as a fraction of segment_length_s. 
                                    Defaults to 0.0.
-        normalize (bool, optional): Whether to normalize the audio. Defaults to False.
-        denoise (bool, optional): Whether to denoise the audio. Defaults to False.
-        desilence (bool, optional): Whether to remove silence from the audio. Defaults to False.
-
+        normalize_loudness (bool, optional): Whether to normalize the audio in dB. Defaults to True.
+        normalize_amplitude (bool, optional): Whether to normalize the audio to [-1, 1] amplitude. Defaults to True.
+        
     Returns:
         None
     """
@@ -82,7 +81,7 @@ def segment_audio(
     np_audio = audiosegment_to_ndarray_32(audio)
     
     # normalize between -1 and 1
-    if normalize_unit:
+    if normalize_amplitude:
         np_audio = normalize_unit(np_audio)
 
     # segment into segment_length_s samples
@@ -97,8 +96,8 @@ def segment_audio(
         # pad or crop end-of-file samples
         if end_time > len(audio):
             if cutoff=='pad': # pad with silence (0 amplitude)
-                # if len(segment) < 0.5*segment_length_samples: # pad at most 50% of the signal
-                #     break
+                if len(segment) < 0.8*segment_length_samples: # pad at most 20% of the signal
+                    break
                 pad_len = segment_length_samples - len(segment)
         
                 # Pad with 0s
