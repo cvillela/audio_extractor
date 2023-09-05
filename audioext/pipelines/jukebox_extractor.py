@@ -67,17 +67,13 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
     curr_batch = []
     
     for f in tqdm(file_paths):
-        sample_list, _ = segment_audio(f, **segment_kwargs)
-        print(len(sample_list))
-        if len(sample_list) >= batch_size:
-            if verbose:
-                print("Sample list inside batch size!!")
-                
+        curr_samples, _ = segment_audio(f, **segment_kwargs)
+        sample_list.append(curr_samples)
+        
+        if len(sample_list) >= batch_size:        
             while len(sample_list) >= batch_size:            
                 for _ in range(batch_size):
                     curr_batch.append(sample_list.pop())
-                
-                print("Extracting batch!!")
                 emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
                 curr_batch = []
         
