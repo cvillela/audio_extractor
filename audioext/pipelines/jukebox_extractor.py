@@ -68,7 +68,7 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
     
     for f in tqdm(file_paths):
         curr_samples, _ = segment_audio(f, **segment_kwargs)
-        sample_list.append(curr_samples)
+        sample_list.extend(curr_samples)
         
         if len(sample_list) >= batch_size:        
             while len(sample_list) >= batch_size:            
