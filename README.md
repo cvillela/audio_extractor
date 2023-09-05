@@ -27,6 +27,7 @@ From the project directory, run for help on the parameters:
 ```
 python -m audioext.pipelines.jukebox_extractor -h
 ```
+Note that running this script for the first time will automatically download the model weigths to the machine. Refer to [Jukemirlib](https://github.com/rodrigo-castellon/jukemirlib) for more information.
 
 ### TO-DO
 - [x] Reformat code to have a decoupled audio_segmenter utility
