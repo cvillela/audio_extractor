@@ -101,6 +101,9 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
 
 def main(args):
 
+    # Check if segment length is in expected range
+    assert args.seg_len <= CTX_WINDOW_LENGTH/JUKEBOX_SR, "Segment length is too long!"
+        
     # Check if out directory exists, if not, create it
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -138,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--mult_factor", default=100, help="Number of embeddings to be extracted from each audio segment. Defaults to 100. Meanpooling overrides this argument")
     parser.add_argument("--chunk_size", default=1000, help="Number of embedding chunks to save in each file for saving RAM. Defaults to 1000.")
     
-    parser.add_argument("--seg_len", default=5, help="Duration of audio segments in seconds. Default is 5")
+    parser.add_argument("--seg_len", default=5, type=int, help="Duration of audio segments in seconds. Default is 5, maximum is 23.")
     parser.add_argument("--cutoff", type=str, default="crop",  help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad'].")
     parser.add_argument("--overlap", default=0.0, help="Percentage of overlap between samples. Default is 0.00.")
 
