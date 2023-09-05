@@ -42,7 +42,7 @@ def extract_batch(audio_samples, meanpool=False, mult_factor=100):
 
 
 
-def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_factor=100, emb_chunk_size=1000, **segment_kwargs):
+def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_factor=100, emb_chunk_size=1000, verbose=False, **segment_kwargs):
     """
     Extracts audio samples from a list of file paths, processes them in batches, and saves the extracted embeddings to disk.
 
@@ -81,7 +81,12 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
             emb_list = np.vstack(emb_list)
             np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
             emb_list = []
-    
+
+        if verbose:
+            print("Emb list is now")
+            print(len(emb_list))
+            print(emb_list[-1].shape)
+            
     # process last batch -> sample_list with < batch_size elements or emb_list with < emb_chunk_size elements
     if len(sample_list)>0 or len(emb_list)>0:
         while len(sample_list) > 0:
@@ -95,11 +100,25 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
                 n_batches+=1
             
             emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
+            if verbose:
+                print("After remaining embeddings")
+                print(len(emb_list))
+                print(emb_list[-1].shape)
             
             # remove dummy batch from embs if it exists
             if n_batches>0:
                 emb_list = emb_list[:-n_batches]
             
+            if verbose:
+                print("After removing dummy batch")
+                print(len(emb_list))
+                print(emb_list[-1].shape)
+                
+        if verbose:
+            print("Final embeddings")
+            print(len(emb_list))
+            print(emb_list[-1].shape)
+                
         emb_list = np.vstack(emb_list)
         i+=1
         np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
@@ -133,7 +152,7 @@ def main(args):
 
     extract_from_files(
         file_paths, args.output_dir, batch_size=args.batch_size, meanpool=args.meanpool,
-        mult_factor=args.mult_factor, emb_chunk_size=args.chunk_size, **seg_dict
+        mult_factor=args.mult_factor, emb_chunk_size=args.chunk_size, verbose=args.verbose, **seg_dict
     )
 
 
@@ -154,6 +173,8 @@ if __name__ == "__main__":
     parser.add_argument("--seg_len", default=5, type=int, help="Duration of audio segments in seconds. Default is 5, maximum is 23.")
     parser.add_argument("--cutoff", type=str, default="crop",  help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad']. Default is crop")
     parser.add_argument("--overlap", default=0.0, help="Percentage of overlap between samples. Default is 0.00.")
+
+    parser.add_argument("--verbose", default=False, help="Wether to print logs. Default is false (--no-verbose)", action=argparse.BooleanOptionalAction)
 
     # Parse the arguments
     args = parser.parse_args()
