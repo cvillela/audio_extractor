@@ -21,21 +21,29 @@ Repo configured with useful functions for preprocessing, segmenting and creating
    conda install -c conda-forge ffmpeg
  ```
 ## Current Features:
- - Efficiently segments audio files in given directory with length, arbitrary overlap between samples + padding/cropping
- - Creates splits for train/test/val
+ - Efficiently segments audio files in given directory with length in seconds, arbitrary overlap between samples, padding/cropping segments, loudness and amplitude normalization.
+ - Creates splits for train/test/val for segmented samples
  - Jukebox Embedding Extractor
    - (1 -1722) datapoints with (4800) dimensions for anything between (0-24) seconds of audio
- - Wav-2-Vec embedding extraction
- - MusicGen specific metadata creation
+
+## Jukebox Extractor
+Extract [OpenAI's Jukebox](https://openai.com/research/jukebox) embeddings from a series of audio files contained in a directory.
+From the project directory, run for help on the parameters: 
+```
+python -m audioext.pipelines.jukebox_extractor -h
+```
 
 ### TO-DO
-- [ ] Reformat code to have a single Audio Segmenter class + call variations from command line
-- [ ] Jukebox extraction notebook to script
-- [ ] Create template for Metadata Generation for different models, that can be called upon the Audio Segmenter
-- [ ] Add audio Denoise + Silence
-- [ ] Add Music Emotion Recognition Pipeline
-- [ ] Bandwith Extension / Audio-Super resolution?
+- [x] Reformat code to have a decoupled audio_segmenter utility
+- [x] Reformat code to have a decoupled audio_processer utility
+- [x] Jukebox extraction notebook to callable script
+- [ ] Reformat pipelines for Dataset Generation.
+- [ ] Reformat pipeline for Music Emotion Recognition.
+- [ ] Create Audio Metadata enriching pipelines.   
+- [ ] Add audio Denoise + Remove Silence.
+- [ ] Add bandwith extension and audio super-resolution?
 
-### BUGS
- - Handle audio with varying sample_rates -> load with librosa setting the sample_rate prior
+### Known bugs
+ - Handle single audio file with varying sample_rate
+ - Debug multi-channel normalization
 
