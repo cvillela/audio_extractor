@@ -70,9 +70,14 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
         sample_list, _ = segment_audio(f, **segment_kwargs)
 
         if len(sample_list) >= batch_size:
+            if verbose:
+                print("Sample list inside batch size!!")
+                
             while len(sample_list) >= batch_size:            
                 for _ in range(batch_size):
                     curr_batch.append(sample_list.pop())
+                
+                print("Extracting batch!!")
                 emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
                 curr_batch = []
         
@@ -82,12 +87,7 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
             np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
             emb_list = []
 
-        if verbose:
-            print("Emb list is now")
-            print(len(emb_list))
-            if emb_list != []:
-                print(emb_list[-1].shape)
-            
+    
     # process last batch -> sample_list with < batch_size elements or emb_list with < emb_chunk_size elements
     if len(sample_list)>0 or len(emb_list)>0:
         while len(sample_list) > 0:
@@ -101,27 +101,12 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
                 n_batches+=1
             
             emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
-            
-            if verbose:
-                print("After remaining embeddings")
-                print(len(emb_list))
-                if emb_list != []:
-                    print(emb_list[-1].shape)
-            
+                        
             # remove dummy batch from embs if it exists
             if n_batches>0:
                 emb_list = emb_list[:-n_batches]
             
-            if verbose:
-                print("After removing dummy batch")
-                print(len(emb_list))
-                if emb_list != []:
-                    print(emb_list[-1].shape)
                 
-        if verbose:
-            print("Final embeddings")
-            print(len(emb_list))
-            print(emb_list[-1].shape)
                 
         emb_list = np.vstack(emb_list)
         i+=1
