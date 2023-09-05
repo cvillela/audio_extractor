@@ -7,7 +7,8 @@ import json
 import numpy as np
 import scipy.io.wavfile
 
-from .audio_processer import normalize_unit, audiosegment_to_ndarray_32
+from .audio_processer import normalize_unit, normalize_loudness, resample_segment, set_channels
+from .audio_processer import audiosegment_to_ndarray_32
 
 def get_audio_metadata(audio, filename):
     """
@@ -33,7 +34,7 @@ def get_audio_metadata(audio, filename):
         
 def segment_audio(
         file_path, segment_length_s=10, target_sr=32000, n_channels=1,
-        cutoff='pad', overlap=0.0, normalize_loudness=True, normalize_amplitude=True
+        cutoff='pad', overlap=0.0, loudness_norm=True, normalize_amplitude=True
     ):
     """
     Segment an audio file into smaller segments.
@@ -63,15 +64,15 @@ def segment_audio(
 
     # resample
     if target_sr is not None:
-        audio = audio.set_frame_rate(target_sr) # resample to target_sr
+        audio = resample_segment(audio, target_sr) # resample to target_sr
     
     # force mono/stereo          
     if n_channels is not None:
-        audio = audio.set_channels(n_channels) # convert to mono
+        audio = set_channels(audio, n_channels) # convert to mono
     
     # normalize loudness
-    if normalize_loudness:
-        audio = effects.normalize(audio)
+    if loudness_norm:
+        audio = normalize_loudness(audio)
     
     # Audio info dict
     audio_metadata = get_audio_metadata(audio, file_name)
