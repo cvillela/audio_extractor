@@ -22,8 +22,8 @@ def extract_batch(audio_samples, meanpool=False, mult_factor=100):
     Returns:
         ndarray: The final embeddings after extracting and processing the audio samples.
     """
-    assert mult_factor <= 1722
-        
+    assert mult_factor <= 1722, "Mult factor must be less than or equal to 1722!"
+    
     embs = jukemirlib.extract(audio_samples, layers=[36], meanpool=meanpool)[36]
 
     # if batch_size == 1
@@ -82,13 +82,23 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
             np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
             emb_list = []
     
-    # process last batch
+    # process last batch -> sample_list with < batch_size elements or emb_list with < emb_chunk_size elements
     if len(sample_list)>0 or len(emb_list)>0:
         while len(sample_list) > 0:
             curr_batch.append(sample_list.pop())
         
-        if len(curr_batch)>0:
-            emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor = mult_factor))
+        if len(curr_batch)>0:            
+            n_batches = 0
+            # curr_batch needs to be of shape (batch_size, seg_len, n_channels) because of precomputed TOP_PRIOR
+            while len(curr_batch) < batch_size:
+                curr_batch.append(curr_batch[0])
+                n_batches+=1
+            
+            emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
+            
+            # remove dummy batch from embs if it exists
+            if n_batches>0:
+                emb_list = emb_list[:-n_batches]
             
         emb_list = np.vstack(emb_list)
         i+=1
