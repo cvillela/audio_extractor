@@ -136,13 +136,13 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, help="Path to directory to save the embeddings to.")
     
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size, defaults to 4.")
-    parser.add_argument("--meanpool", default=False, help="Wether to perform mean pooling.", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--meanpool", default=False, help="Wether to perform mean pooling. Default is false (--no-meanpool)", action=argparse.BooleanOptionalAction)
 
-    parser.add_argument("--mult_factor", default=100, help="Number of embeddings to be extracted from each audio segment. Defaults to 100. Meanpooling overrides this argument")
-    parser.add_argument("--chunk_size", default=1000, help="Number of embedding chunks to save in each file for saving RAM. Defaults to 1000.")
+    parser.add_argument("--mult_factor", type=int, default=100, help="Number of embeddings to be extracted from each audio segment. Defaults to 100. Meanpooling overrides this argument")
+    parser.add_argument("--chunk_size", type=int, default=1000, help="Number of embedding chunks to save in each file for saving RAM. Defaults to 1000.")
     
     parser.add_argument("--seg_len", default=5, type=int, help="Duration of audio segments in seconds. Default is 5, maximum is 23.")
-    parser.add_argument("--cutoff", type=str, default="crop",  help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad'].")
+    parser.add_argument("--cutoff", type=str, default="crop",  help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad']. Default is crop")
     parser.add_argument("--overlap", default=0.0, help="Percentage of overlap between samples. Default is 0.00.")
 
     # Parse the arguments
