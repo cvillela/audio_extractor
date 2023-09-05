@@ -20,11 +20,6 @@ Repo configured with useful functions for preprocessing, segmenting and creating
  ```
    conda install -c conda-forge ffmpeg
  ```
-## Current Features:
- - Efficiently segments audio files in given directory with length in seconds, arbitrary overlap between samples, padding/cropping segments, loudness and amplitude normalization.
- - Creates splits for train/test/val for segmented samples
- - Jukebox Embedding Extractor
-   - (1 -1722) datapoints with (4800) dimensions for anything between (0-24) seconds of audio
 
 ## Jukebox Extractor
 Extract [OpenAI's Jukebox](https://openai.com/research/jukebox) embeddings from a series of audio files contained in a directory.
