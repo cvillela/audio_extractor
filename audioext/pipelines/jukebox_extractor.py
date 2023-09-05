@@ -85,7 +85,8 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
         if verbose:
             print("Emb list is now")
             print(len(emb_list))
-            print(emb_list[-1].shape)
+            if emb_list != []:
+                print(emb_list[-1].shape)
             
     # process last batch -> sample_list with < batch_size elements or emb_list with < emb_chunk_size elements
     if len(sample_list)>0 or len(emb_list)>0:
@@ -100,10 +101,12 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
                 n_batches+=1
             
             emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
+            
             if verbose:
                 print("After remaining embeddings")
                 print(len(emb_list))
-                print(emb_list[-1].shape)
+                if emb_list != []:
+                    print(emb_list[-1].shape)
             
             # remove dummy batch from embs if it exists
             if n_batches>0:
@@ -112,7 +115,8 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
             if verbose:
                 print("After removing dummy batch")
                 print(len(emb_list))
-                print(emb_list[-1].shape)
+                if emb_list != []:
+                    print(emb_list[-1].shape)
                 
         if verbose:
             print("Final embeddings")
