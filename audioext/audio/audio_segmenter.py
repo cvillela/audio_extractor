@@ -60,7 +60,7 @@ def segment_audio(
     
     # load audio
     audio = AudioSegment.from_file(file_path)
-    
+
     # resample
     if target_sr is not None:
         audio = audio.set_frame_rate(target_sr) # resample to target_sr
@@ -96,7 +96,7 @@ def segment_audio(
         segment = np_audio[start_time:end_time][:,0]
         
         # pad or crop end-of-file samples
-        if end_time > len(audio):
+        if end_time > len(np_audio):
             if cutoff=='pad': # pad with silence (0 amplitude)
                 if len(segment) < 0.8*segment_length_samples: # pad at most 20% of the signal
                     break
@@ -111,10 +111,10 @@ def segment_audio(
             
             elif cutoff=='crop': # discard smaller sample
                 break
-        
+            
         segment_list.append(segment)
         meta_list.append(audio_metadata)
-
+        
     return segment_list, meta_list
 
 def save_sample_meta(audio_meta, segment, out_dir):
