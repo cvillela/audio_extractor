@@ -4,7 +4,7 @@ Repo configured with useful functions for preprocessing, segmenting and creating
 ## Installation
  - Create a conda environment and activate it:
 ```
-   conda create --name audioext python=3.11.5
+   conda create --name audioext -c conda-forge python=3.11
    conda activate audioext
 ```
 - Be sure to have [torch>=2.0 and torchaudio>=2.0 installed](https://pytorch.org/get-started/locally/)
