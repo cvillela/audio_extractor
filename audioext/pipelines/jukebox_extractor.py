@@ -128,7 +128,7 @@ def main(args):
         "overlap": args.overlap,
         "target_sr": JUKEBOX_SR,
         "n_channels": 1,
-        "normalize_loudness": True,
+        "loudness_norm": True,
         "normalize_amplitude": True
     }
     

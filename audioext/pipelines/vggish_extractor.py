@@ -11,7 +11,7 @@ JUKEBOX_SR = 44100
 CTX_WINDOW_LENGTH = 1048576
 
 
-def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_factor=100, emb_chunk_size=1000, verbose=False, **segment_kwargs):
+def extract_from_files(file_paths, out_dir, mult_factor=100, emb_chunk_size=1000, **segment_kwargs):
     """
     Extracts audio samples from a list of file paths, processes them in batches, and saves the extracted embeddings to disk.
 
@@ -35,9 +35,7 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
     
     
     i = 0
-    emb_list = []
-    sample_list = []
-    
+    emb_list = []    
     
     for f in tqdm(file_paths):
         curr_samples, _ = segment_audio(f, **segment_kwargs)
@@ -78,7 +76,7 @@ def main(args):
         "overlap": args.overlap,
         "target_sr": JUKEBOX_SR,
         "n_channels": 1,
-        "normalize_loudness": True,
+        "loudness_norm": True,
         "normalize_amplitude": True
     }
     
@@ -86,8 +84,7 @@ def main(args):
     file_paths = list_wavs_from_dir(args.samples_dir)
 
     extract_from_files(
-        file_paths, args.output_dir, batch_size=args.batch_size, meanpool=args.meanpool,
-        mult_factor=args.mult_factor, emb_chunk_size=args.chunk_size, verbose=args.verbose, **seg_dict
+        file_paths, args.output_dir, emb_chunk_size=args.chunk_size, **seg_dict
     )
 
 
@@ -99,17 +96,13 @@ if __name__ == "__main__":
     parser.add_argument("--samples_dir", type=str, help="Path to directory containing audio samples.")
     parser.add_argument("--output_dir", type=str, help="Path to directory to save the embeddings to.")
     
-    # parser.add_argument("--batch_size", type=int, default=4, help="Batch size, defaults to 4.")
-    # parser.add_argument("--meanpool", default=False, help="Wether to perform mean pooling. Default is false (--no-meanpool)", action=argparse.BooleanOptionalAction)
-
-    # parser.add_argument("--mult_factor", type=int, default=100, help="Number of embeddings to be extracted from each audio segment. Defaults to 100. Meanpooling overrides this argument")
     parser.add_argument("--chunk_size", type=int, default=1000, help="Number of embedding chunks to save in each file for saving RAM. Defaults to 1000.")
     
     parser.add_argument("--seg_len", default=5, type=int, help="Duration of audio segments in seconds. Default is 5, maximum is 23.")
     parser.add_argument("--cutoff", type=str, default="crop",  help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad']. Default is crop")
     parser.add_argument("--overlap", default=0.0, help="Percentage of overlap between samples. Default is 0.00.")
 
-    parser.add_argument("--verbose", default=False, help="Wether to print logs. Default is false (--no-verbose)", action=argparse.BooleanOptionalAction)
+    # parser.add_argument("--verbose", default=False, help="Wether to print logs. Default is false (--no-verbose)", action=argparse.BooleanOptionalAction)
 
     # Parse the arguments
     args = parser.parse_args()
