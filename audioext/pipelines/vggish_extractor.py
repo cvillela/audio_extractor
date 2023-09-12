@@ -7,9 +7,6 @@ import torch
 from ..audio.audio_segmenter import segment_audio
 from ..audio.audio_utils import list_wavs_from_dir
 
-JUKEBOX_SR = 44100
-CTX_WINDOW_LENGTH = 1048576
-
 
 def extract_from_files(file_paths, out_dir, mult_factor=100, emb_chunk_size=1000, **segment_kwargs):
     """
@@ -38,10 +35,10 @@ def extract_from_files(file_paths, out_dir, mult_factor=100, emb_chunk_size=1000
     emb_list = []    
     
     for f in tqdm(file_paths):
-        curr_samples, _ = segment_audio(f, **segment_kwargs)
-        for s in curr_samples:
+        curr_samples, curr_meta = segment_audio(f, **segment_kwargs)
+        for s, meta in zip(curr_samples, curr_meta):
             s = s.astype(np.int16)
-            emb = model.forward(s)
+            emb = model.forward(s, fs=meta.sample_rate)
             emb_list.append(emb)
             
         if len(emb_list) > emb_chunk_size:
@@ -74,7 +71,7 @@ def main(args):
         "segment_length_s": args.seg_len,
         "cutoff": args.cutoff,
         "overlap": args.overlap,
-        "target_sr": JUKEBOX_SR,
+        "target_sr": None,
         "n_channels": 1,
         "loudness_norm": True,
         "normalize_amplitude": True
