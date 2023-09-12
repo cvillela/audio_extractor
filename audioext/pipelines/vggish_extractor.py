@@ -59,9 +59,6 @@ def extract_from_files(file_paths, out_dir, mult_factor=100, emb_chunk_size=1000
 
 
 def main(args):
-
-    # Check if segment length is in expected range
-    assert args.seg_len <= CTX_WINDOW_LENGTH/JUKEBOX_SR, "Segment length is too long!"
         
     # Check if out directory exists, if not, create it
     os.makedirs(args.output_dir, exist_ok=True)
