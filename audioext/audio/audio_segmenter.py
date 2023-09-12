@@ -79,7 +79,7 @@ def segment_audio(
     
     # turn into np array 
     np_audio = audiosegment_to_ndarray_32(audio)
-    
+
     # normalize between -1 and 1
     if normalize_amplitude:
         np_audio = normalize_unit(np_audio)
@@ -94,7 +94,7 @@ def segment_audio(
         # create segment
         start_time = i 
         end_time = i + segment_length_samples
-        segment = np_audio[start_time:end_time][:,0]
+        segment = np_audio[start_time:end_time]
         
         # pad or crop end-of-file samples
         if end_time > len(np_audio):
