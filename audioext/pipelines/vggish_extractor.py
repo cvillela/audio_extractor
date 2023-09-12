@@ -38,7 +38,7 @@ def extract_from_files(file_paths, out_dir, mult_factor=100, emb_chunk_size=1000
         curr_samples, curr_meta = segment_audio(f, **segment_kwargs)
         for s, meta in zip(curr_samples, curr_meta):
             s = s.astype(np.int16)
-            emb = model.forward(s, fs=meta["sample_rate"]).detach().numpy()
+            emb = model.forward(s, fs=meta["sample_rate"]).cpu().detach().numpy()
             emb_list.append(emb)
             
         if len(emb_list) > emb_chunk_size:
