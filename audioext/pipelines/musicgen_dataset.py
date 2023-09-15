@@ -56,8 +56,8 @@ def main(args):
                 f, **seg_dict
             )
         except:
-            with open('failed_segment.txt', 'a') as f:
-                f.write(f"{f}\n")
+            with open('failed_segment.txt', 'a') as log_file:
+                log_file.write(f"{f}\n")
             continue
         
         for segment, meta in zip(seg_list, meta_list):
