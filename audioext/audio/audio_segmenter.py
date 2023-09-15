@@ -6,6 +6,9 @@ from unidecode import unidecode
 import json
 import numpy as np
 import scipy.io.wavfile
+import splitfolders
+from tqdm import tqdm
+import shutil
 
 from .audio_processer import normalize_unit, normalize_loudness, resample_segment, set_channels
 from .audio_processer import audiosegment_to_ndarray_32
@@ -139,12 +142,66 @@ def save_sample_meta(audio_meta, segment, out_dir):
     seg_path = os.path.join(sample_dir, f'{sample_name}.wav')
     meta_path = os.path.join(meta_dir, f'{sample_name}.json')
     
-    # create a copy of audio_meta dictionary to add segment specific information
-    segment_meta_dict = audio_meta.copy()
+    audio_meta["name"] = sample_name
     
     # Save the segment as a WAV file
-    scipy.io.wavfile.write(seg_path, segment_meta_dict["sample_rate"], segment)
+    scipy.io.wavfile.write(seg_path, audio_meta["sample_rate"], segment)
     
     # Save the metadata as a JSON file
     with open(meta_path, 'w', encoding='utf8') as fp:
-        json.dump(segment_meta_dict, fp)
+        json.dump(audio_meta, fp)
+
+def generate_splits(out_dir, val_ratio=0.2, n_test=50, no_classes=True):
+    
+    sample_dir = os.path.join(out_dir, 'samples')
+    meta_dir = os.path.join(out_dir, 'metadata')
+    
+    if no_classes:
+        print("Moving all files in sample dir to dummy folder...")
+        # move all sample_dir files to a dummy folder inside sample_dir
+        for f in tqdm(os.listdir(sample_dir)):
+            os.rename(os.path.join(sample_dir, f), os.path.join(sample_dir, 'dummy'))
+    
+    splits_dir = os.path.join(out_dir, 'splits')
+    os.makedirs(splits_dir, exist_ok=True)
+    
+    print("Creating random train/val splits!")
+    splitfolders.ratio(
+        sample_dir,
+        output=splits_dir,
+        seed=1337,
+        ratio=(1-val_ratio, val_ratio)
+    )
+
+    # create test directory
+    os.makedirs(os.path.join(splits_dir, 'test'), exist_ok=True)
+    
+    print(f"Moving {n_test} files from train to test...")
+    # move n_test random files in train dir to test dir
+    for f in tqdm(os.listdir(os.path.join(splits_dir, 'train'))[:n_test]):
+        os.rename(os.path.join(splits_dir, 'train', f), os.path.join(splits_dir, 'test', f))
+    
+    print("Copying metadata to corresponding splits...")
+    # move metadata to split folders
+    for dirpath, dirnames, filenames in os.walk(splits_dir):
+        for file_name in tqdm(filenames):
+            fn = file_name.split('.')[0]+'.json'
+            shutil.copy(os.path.join(meta_dir,fn), os.path.join(dirpath, fn))
+        
+    if no_classes:
+        print("Deleting dummy folders in splits directory...")
+        # move all files in dummy dir back to sample_dir and delete dummy dir
+        for f in tqdm(os.listdir(os.path.join(sample_dir, 'dummy'))):
+            os.rename(os.path.join(sample_dir, 'dummy', f), os.path.join(sample_dir, f))
+        os.rmdir(os.path.join(sample_dir, 'dummy'))
+    
+        # repeat for training, validation in splits directory
+        dir_list = ['train', 'val']
+        for d in dir_list:
+            for f in tqdm(os.listdir(os.path.join(splits_dir, d, 'dummy'))):
+                os.rename(os.path.join(splits_dir, d, "dummy", f), os.path.join(splits_dir,d, f))
+            os.rmdir(os.path.join(splits_dir, d, 'dummy'))
+    
+    print("Splits created!")
+    
+    return
