@@ -51,9 +51,15 @@ def main(args):
     print(f"Prompt to be used in music generation/conditioning is: {random_prompt}")
     
     for f in tqdm(file_paths):
-        seg_list, meta_list = segment_audio(
-            f, **seg_dict
-        )
+        try:
+            seg_list, meta_list = segment_audio(
+                f, **seg_dict
+            )
+        except:
+            with open('failed_segment.txt', 'a') as f:
+                f.write(f"{f}\n")
+            continue
+        
         for segment, meta in zip(seg_list, meta_list):
             meta_musicgen = JSON_TEMPLATE.copy()
             meta_musicgen["sample_rate"] = meta["sample_rate"]
