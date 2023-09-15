@@ -80,12 +80,12 @@ if __name__ == "__main__":
     parser.add_argument("--samples_dir", type=str, default="", help="Path to directory containing raw samples.")
     parser.add_argument("--output_dir", type=str, default="", help="Path to directory to save the cropped samples and metadata to.")
     
-    parser.add_argument("--val_ratio", type=float, default=0.2, help="Percentage of files to be used for validation. Default is 0.2 (20%)")
+    parser.add_argument("--val_ratio", type=float, default=0.2, help="Percentage of files to be used for validation. Default is 0.2 (20%%)")
     parser.add_argument("--n_test", type=int, default=50, help="Number of files to be used for testing/generation. Default is 50")
     
-    parser.add_argument("--seg_len", default=30, type=int, help="Duration of audio segments in seconds. Default is 30.")
+    parser.add_argument("--seg_len", type=int, default=30, help="Duration of audio segments in seconds. Default is 30.")
     parser.add_argument("--cutoff", type=str, default="crop",  help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad']. Default is crop")
-    parser.add_argument("--overlap", default=0.0, help="Percentage of overlap between samples. Default is 0.00.")
+    parser.add_argument("--overlap", type=float, default=0.0, help="Percentage of overlap between samples. Default is 0.00.")
 
     parser.add_argument("--verbose", default=False, help="Wether to print logs. Default is false (--no-verbose)", action=argparse.BooleanOptionalAction)
 
