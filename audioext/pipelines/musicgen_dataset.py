@@ -48,7 +48,7 @@ def main(args):
     random_prompt = "8H38fNdtri"
     
     print("Extracting samples....")
-    print(f"Prompt is: {random_prompt}")
+    print(f"Prompt to be used in music generation/conditioning is: {random_prompt}")
     
     for f in tqdm(file_paths):
         seg_list, meta_list = segment_audio(
@@ -56,13 +56,12 @@ def main(args):
         )
         for segment, meta in zip(seg_list, meta_list):
             meta_musicgen = JSON_TEMPLATE.copy()
-            meta_musicgen["sample_rate"] = meta.sample_rate
-            
+            meta_musicgen["sample_rate"] = meta["sample_rate"]
             meta_musicgen["description"] = random_prompt
             meta_musicgen["keywords"] = random_prompt
             meta_musicgen["genre"] = "classical, orchestra"
             
-            save_sample_meta(meta, segment, args.output_dir)
+            save_sample_meta(meta_musicgen, segment, args.output_dir)
     
     print("Segmentation is done!")
     sample_wavs = list_wavs_from_dir(args.output_dir)

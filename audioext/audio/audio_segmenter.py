@@ -153,14 +153,18 @@ def save_sample_meta(audio_meta, segment, out_dir):
 
 def generate_splits(out_dir, val_ratio=0.2, n_test=50, no_classes=True):
     
+    # here goes some REALLY UGLY code, if you are reading, I am sorry.
+    
     sample_dir = os.path.join(out_dir, 'samples')
     meta_dir = os.path.join(out_dir, 'metadata')
     
     if no_classes:
         print("Moving all files in sample dir to dummy folder...")
+        os.makedirs(os.path.join(sample_dir, "dummy"), exist_ok=True)
         # move all sample_dir files to a dummy folder inside sample_dir
         for f in tqdm(os.listdir(sample_dir)):
-            os.rename(os.path.join(sample_dir, f), os.path.join(sample_dir, 'dummy'))
+            if f != "dummy":
+                shutil.move(os.path.join(sample_dir, f), os.path.join(sample_dir, 'dummy', f))
     
     splits_dir = os.path.join(out_dir, 'splits')
     os.makedirs(splits_dir, exist_ok=True)
@@ -178,8 +182,8 @@ def generate_splits(out_dir, val_ratio=0.2, n_test=50, no_classes=True):
     
     print(f"Moving {n_test} files from train to test...")
     # move n_test random files in train dir to test dir
-    for f in tqdm(os.listdir(os.path.join(splits_dir, 'train'))[:n_test]):
-        os.rename(os.path.join(splits_dir, 'train', f), os.path.join(splits_dir, 'test', f))
+    for f in tqdm(os.listdir(os.path.join(splits_dir, "train", "dummy"))[:n_test]):
+        shutil.move(os.path.join(splits_dir, 'train', "dummy", f), os.path.join(splits_dir, 'test'))
     
     print("Copying metadata to corresponding splits...")
     # move metadata to split folders
@@ -189,17 +193,19 @@ def generate_splits(out_dir, val_ratio=0.2, n_test=50, no_classes=True):
             shutil.copy(os.path.join(meta_dir,fn), os.path.join(dirpath, fn))
         
     if no_classes:
-        print("Deleting dummy folders in splits directory...")
-        # move all files in dummy dir back to sample_dir and delete dummy dir
+        print("Deleting dummy folders in sample directory...")
+        # move all files in sample_dir/dummy back to sample_dir and delete dummy dir
         for f in tqdm(os.listdir(os.path.join(sample_dir, 'dummy'))):
-            os.rename(os.path.join(sample_dir, 'dummy', f), os.path.join(sample_dir, f))
+            if f != "dummy":
+                shutil.move(os.path.join(sample_dir, 'dummy', f), os.path.join(sample_dir))
         os.rmdir(os.path.join(sample_dir, 'dummy'))
     
         # repeat for training, validation in splits directory
         dir_list = ['train', 'val']
         for d in dir_list:
             for f in tqdm(os.listdir(os.path.join(splits_dir, d, 'dummy'))):
-                os.rename(os.path.join(splits_dir, d, "dummy", f), os.path.join(splits_dir,d, f))
+                if f != "dummy":
+                    shutil.move(os.path.join(splits_dir, d, "dummy", f), os.path.join(splits_dir,d))
             os.rmdir(os.path.join(splits_dir, d, 'dummy'))
     
     print("Splits created!")
