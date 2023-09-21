@@ -9,6 +9,7 @@ def normalize_unit(y):
     norm_factor = np.abs(y).max()
     if norm_factor > 0:
         y /= norm_factor
+    y = np.clip(y, -1.0, 1.0)
     return y
 
 def normalize_loudness(audio_segment):
