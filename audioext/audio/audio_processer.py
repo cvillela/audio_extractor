@@ -7,8 +7,6 @@ from scipy.signal import butter, lfilter, freqz
 from pydub.silence import split_on_silence
 import noisereduce as nr
 
-from .audio_utils import plot_bp_filter
-
 
 def normalize_unit(y):
     # ONLY SUPPORTS MONO
@@ -114,9 +112,9 @@ def bandpass_filter_signal(y, sr, order=6, low=1000, high=11000, plot=True):
     y_bp = lfilter(b, a, y)
 
     # Plot the frequency response.
-    if plot:
-        # Get the filter coefficients so we can check its frequency response.
-        plot_bp_filter(sr, order, low, high)
+    # if plot:
+    #     # Get the filter coefficients so we can check its frequency response.
+    #     plot_bp_filter(sr, order, low, high)
 
     return y_bp.astype(np.float32)
 
