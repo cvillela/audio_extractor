@@ -10,6 +10,7 @@ from ..audio.audio_utils import list_wavs_from_dir
 JUKEBOX_SR = 44100
 CTX_WINDOW_LENGTH = 1048576
 
+
 def extract_batch(audio_samples, meanpool=False, mult_factor=100):
     """
     Extracts embeddings from a batch of audio samples using the Jukebox library.
@@ -23,26 +24,34 @@ def extract_batch(audio_samples, meanpool=False, mult_factor=100):
         ndarray: The final embeddings after extracting and processing the audio samples.
     """
     assert mult_factor <= 1722, "Mult factor must be less than or equal to 1722!"
-    
+
     embs = jukemirlib.extract(audio_samples, layers=[36], meanpool=meanpool)[36]
 
     # if batch_size == 1
-    if embs.ndim==2:
+    if embs.ndim == 2:
         embs = embs.reshape(1, embs.shape[0], embs.shape[1])
-        
+
     if meanpool:
         print("Applying mean pooling to embeddings, mult factor is disconsidered")
-        final_embs=embs
+        final_embs = embs
     else:
         split_embeddings = np.array_split(embs, mult_factor, axis=1)
         mean_splits = [np.mean(arr, axis=1) for arr in split_embeddings]
         final_embs = np.vstack(mean_splits)
-    
+
     return final_embs
 
 
-
-def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_factor=100, emb_chunk_size=1000, verbose=False, **segment_kwargs):
+def extract_from_files(
+    file_paths,
+    out_dir,
+    batch_size=4,
+    meanpool=False,
+    mult_factor=100,
+    emb_chunk_size=1000,
+    verbose=False,
+    **segment_kwargs,
+):
     """
     Extracts audio samples from a list of file paths, processes them in batches, and saves the extracted embeddings to disk.
 
@@ -59,69 +68,73 @@ def extract_from_files(file_paths, out_dir, batch_size=4, meanpool=False, mult_f
     - None
     """
 
-    print(f"Extracting embeddings to {out_dir} with a batch size of {batch_size} and m_factor of {mult_factor}")
-    
+    print(
+        f"Extracting embeddings to {out_dir} with a batch size of {batch_size} and m_factor of {mult_factor}"
+    )
+
     i = 0
     emb_list = []
     sample_list = []
     curr_batch = []
-    
+
     for f in tqdm(file_paths):
         curr_samples, _ = segment_audio(f, **segment_kwargs)
         sample_list.extend(curr_samples)
-        
-        if len(sample_list) >= batch_size:        
-            while len(sample_list) >= batch_size:            
+
+        if len(sample_list) >= batch_size:
+            while len(sample_list) >= batch_size:
                 for _ in range(batch_size):
                     curr_batch.append(sample_list.pop())
-                emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
+                emb_list.append(
+                    extract_batch(
+                        curr_batch, meanpool=meanpool, mult_factor=mult_factor
+                    )
+                )
                 curr_batch = []
-        
+
         if len(emb_list) > emb_chunk_size:
-            i+=1
+            i += 1
             emb_list = np.vstack(emb_list)
             np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
             emb_list = []
 
-    
     # process last batch -> sample_list with < batch_size elements or emb_list with < emb_chunk_size elements
-    if len(sample_list)>0 or len(emb_list)>0:
+    if len(sample_list) > 0 or len(emb_list) > 0:
         while len(sample_list) > 0:
             curr_batch.append(sample_list.pop())
-        
-        if len(curr_batch)>0:            
+
+        if len(curr_batch) > 0:
             n_batches = 0
             # curr_batch needs to be of shape (batch_size, seg_len, n_channels) because of precomputed TOP_PRIOR
             while len(curr_batch) < batch_size:
                 curr_batch.append(curr_batch[0])
-                n_batches+=1
-            
-            emb_list.append(extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor))
-                        
+                n_batches += 1
+
+            emb_list.append(
+                extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor)
+            )
+
             # remove dummy batch from embs if it exists
-            if n_batches>0:
+            if n_batches > 0:
                 emb_list = emb_list[:-n_batches]
-            
-                
-                
+
         emb_list = np.vstack(emb_list)
-        i+=1
+        i += 1
         np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
         curr_batch = []
         emb_list = []
-    
+
     return
 
 
 def main(args):
-
     # Check if segment length is in expected range
-    assert args.seg_len <= CTX_WINDOW_LENGTH/JUKEBOX_SR, "Segment length is too long!"
-        
+    assert args.seg_len <= CTX_WINDOW_LENGTH / JUKEBOX_SR, "Segment length is too long!"
+
     # Check if out directory exists, if not, create it
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # specify segmentation parameters     
+    # specify segmentation parameters
     seg_dict = {
         "segment_length_s": args.seg_len,
         "cutoff": args.cutoff,
@@ -129,15 +142,21 @@ def main(args):
         "target_sr": JUKEBOX_SR,
         "n_channels": 1,
         "loudness_norm": True,
-        "normalize_amplitude": True
+        "normalize_amplitude": True,
     }
-    
+
     # get file paths from sample dir
     file_paths = list_wavs_from_dir(args.samples_dir)
 
     extract_from_files(
-        file_paths, args.output_dir, batch_size=args.batch_size, meanpool=args.meanpool,
-        mult_factor=args.mult_factor, emb_chunk_size=args.chunk_size, verbose=args.verbose, **seg_dict
+        file_paths,
+        args.output_dir,
+        batch_size=args.batch_size,
+        meanpool=args.meanpool,
+        mult_factor=args.mult_factor,
+        emb_chunk_size=args.chunk_size,
+        verbose=args.verbose,
+        **seg_dict,
     )
 
 
@@ -146,20 +165,60 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parsing Arguments")
 
     # Add arguments
-    parser.add_argument("--samples_dir", type=str, help="Path to directory containing audio samples.")
-    parser.add_argument("--output_dir", type=str, help="Path to directory to save the embeddings to.")
-    
-    parser.add_argument("--batch_size", type=int, default=4, help="Batch size, defaults to 4.")
-    parser.add_argument("--meanpool", default=False, help="Wether to perform mean pooling. Default is false (--no-meanpool)", action=argparse.BooleanOptionalAction)
+    parser.add_argument(
+        "--samples_dir", type=str, help="Path to directory containing audio samples."
+    )
+    parser.add_argument(
+        "--output_dir", type=str, help="Path to directory to save the embeddings to."
+    )
 
-    parser.add_argument("--mult_factor", type=int, default=100, help="Number of embeddings to be extracted from each audio segment. Defaults to 100. Meanpooling overrides this argument")
-    parser.add_argument("--chunk_size", type=int, default=1000, help="Number of embedding chunks to save in each file for saving RAM. Defaults to 1000.")
-    
-    parser.add_argument("--seg_len", default=5, type=int, help="Duration of audio segments in seconds. Default is 5, maximum is 23.")
-    parser.add_argument("--cutoff", type=str, default="crop",  help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad']. Default is crop")
-    parser.add_argument("--overlap", default=0.0, help="Percentage of overlap between samples. Default is 0.00.")
+    parser.add_argument(
+        "--batch_size", type=int, default=4, help="Batch size, defaults to 4."
+    )
+    parser.add_argument(
+        "--meanpool",
+        default=False,
+        help="Wether to perform mean pooling. Default is false (--no-meanpool)",
+        action=argparse.BooleanOptionalAction,
+    )
 
-    parser.add_argument("--verbose", default=False, help="Wether to print logs. Default is false (--no-verbose)", action=argparse.BooleanOptionalAction)
+    parser.add_argument(
+        "--mult_factor",
+        type=int,
+        default=100,
+        help="Number of embeddings to be extracted from each audio segment. Defaults to 100. Meanpooling overrides this argument",
+    )
+    parser.add_argument(
+        "--chunk_size",
+        type=int,
+        default=1000,
+        help="Number of embedding chunks to save in each file for saving RAM. Defaults to 1000.",
+    )
+
+    parser.add_argument(
+        "--seg_len",
+        default=5,
+        type=int,
+        help="Duration of audio segments in seconds. Default is 5, maximum is 23.",
+    )
+    parser.add_argument(
+        "--cutoff",
+        type=str,
+        default="crop",
+        help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad']. Default is crop",
+    )
+    parser.add_argument(
+        "--overlap",
+        default=0.0,
+        help="Percentage of overlap between samples. Default is 0.00.",
+    )
+
+    parser.add_argument(
+        "--verbose",
+        default=False,
+        help="Wether to print logs. Default is false (--no-verbose)",
+        action=argparse.BooleanOptionalAction,
+    )
 
     # Parse the arguments
     args = parser.parse_args()

@@ -1,4 +1,3 @@
-
 import os
 from pydub import AudioSegment, silence, effects
 import uuid
@@ -10,8 +9,14 @@ import splitfolders
 from tqdm import tqdm
 import shutil
 
-from .audio_processer import normalize_unit, normalize_loudness, resample_segment, set_channels
+from .audio_processer import (
+    normalize_unit,
+    normalize_loudness,
+    resample_segment,
+    set_channels,
+)
 from .audio_processer import audiosegment_to_ndarray_32
+
 
 def get_audio_metadata(audio, filename):
     """
@@ -26,19 +31,26 @@ def get_audio_metadata(audio, filename):
             - channels (int): The number of audio channels.
             - bytes_per_sample (int): The number of bytes per audio sample. A value of 1 indicates 8 bit, and a value of 2 indicates 16 bit.
     """
-    meta =  {
+    meta = {
         "sample_rate": audio.frame_rate,
-        "channels": audio.channels, 
-        "bytes_per_sample":audio.sample_width, # 1 means 8 bit, 2 means 16 bit   
-        "filename":filename
+        "channels": audio.channels,
+        "bytes_per_sample": audio.sample_width,  # 1 means 8 bit, 2 means 16 bit
+        "filename": filename,
     }
 
     return meta
-        
+
+
 def segment_audio(
-        file_path, segment_length_s=10, target_sr=32000, n_channels=1,
-        cutoff='pad', overlap=0.0, loudness_norm=True, normalize_amplitude=True
-    ):
+    file_path,
+    segment_length_s=10,
+    target_sr=32000,
+    n_channels=1,
+    cutoff="pad",
+    overlap=0.0,
+    loudness_norm=True,
+    normalize_amplitude=True,
+):
     """
     Segment an audio file into smaller segments.
 
@@ -47,9 +59,9 @@ def segment_audio(
         segment_length_s (float, optional): The duration of each segment in seconds. Defaults to 10.
         target_sr (int, optional): The target sample rate for resampling. Defaults to 32000.
         n_channels (int, optional): The number of audio channels. Defaults to 1.
-        cutoff (str, optional): The strategy for handling segments that are shorter than segment_length_s. 
+        cutoff (str, optional): The strategy for handling segments that are shorter than segment_length_s.
                                Possible values are 'pad', 'leave', and 'crop'. Defaults to 'pad'.
-        overlap (float, optional): The amount of overlap between segments as a fraction of segment_length_s. 
+        overlap (float, optional): The amount of overlap between segments as a fraction of segment_length_s.
                                    Defaults to 0.0.
         normalize_loudness (bool, optional): Whether to normalize the loudness of the audio. Defaults to True.
         normalize_amplitude (bool, optional): Whether to normalize the amplitude of the audio. Defaults to True.
@@ -61,65 +73,64 @@ def segment_audio(
     # Get file name without extension for caption
     file_name = os.path.splitext(os.path.basename(file_path))[0]
     file_name = unidecode(file_name.lower())
-    
+
     # load audio
     audio = AudioSegment.from_file(file_path)
 
     # resample
     if target_sr is not None:
-        audio = resample_segment(audio, target_sr) # resample to target_sr
-    
-    # force mono/stereo          
+        audio = resample_segment(audio, target_sr)  # resample to target_sr
+
+    # force mono/stereo
     if n_channels is not None:
-        audio = set_channels(audio, n_channels) # convert to mono
-    
+        audio = set_channels(audio, n_channels)  # convert to mono
+
     # normalize loudness
     if loudness_norm:
         audio = normalize_loudness(audio)
-    
+
     # Audio info dict
     audio_metadata = get_audio_metadata(audio, file_name)
-    
-    # turn into np array 
-    np_audio = audiosegment_to_ndarray_32(audio)
 
-    # normalize between -1 and 1
-    if normalize_amplitude:
-        np_audio = normalize_unit(np_audio)
+    # turn into np array
+    np_audio = audiosegment_to_ndarray_32(audio)
 
     segment_list = []
     meta_list = []
-    
+
     # segment into segment_length_s samples
     segment_length_samples = segment_length_s * audio.frame_rate
-    step = int((1-overlap)*segment_length_samples)
+    step = int((1 - overlap) * segment_length_samples)
     for i in range(0, len(np_audio), step):
         # create segment
-        start_time = i 
+        start_time = i
         end_time = i + segment_length_samples
         segment = np_audio[start_time:end_time]
-        
+
         # pad or crop end-of-file samples
         if end_time > len(np_audio):
-            if cutoff=='pad': # pad with silence (0 amplitude)
-                if len(segment) < 0.8*segment_length_samples: # pad at most 20% of the signal
+            if cutoff == "pad":  # pad with silence (0 amplitude)
+                if (
+                    len(segment) < 0.8 * segment_length_samples
+                ):  # pad at most 20% of the signal
                     break
-                
+
                 # Pad with 0s
                 pad_len = segment_length_samples - len(segment)
                 pad = np.zeros(pad_len)
-                segment = np.concatenate((segment,pad), axis=0)
-            
-            elif cutoff=='leave': # save sample smaller than segment_length_s
-                segment = audio[start_time:len(audio)] 
-            
-            elif cutoff=='crop': # discard smaller sample
+                segment = np.concatenate((segment, pad), axis=0)
+
+            elif cutoff == "leave":  # save sample smaller than segment_length_s
+                segment = audio[start_time : len(audio)]
+
+            elif cutoff == "crop":  # discard smaller sample
                 break
-            
+
         segment_list.append(segment)
         meta_list.append(audio_metadata)
-        
+
     return segment_list, meta_list
+
 
 def save_sample_meta(audio_meta, segment, out_dir):
     """
@@ -131,83 +142,90 @@ def save_sample_meta(audio_meta, segment, out_dir):
         out_dir (str): Output directory where the segment and metadata will be saved.
     """
     # declare metadata and sample dirs
-    sample_dir = os.path.join(out_dir, 'samples')
-    meta_dir = os.path.join(out_dir, 'metadata')
-    
+    sample_dir = os.path.join(out_dir, "samples")
+    meta_dir = os.path.join(out_dir, "metadata")
+
     # create sample and metadata directories if they don't exist
     os.makedirs(sample_dir, exist_ok=True)
     os.makedirs(meta_dir, exist_ok=True)
-    
+
     sample_name = str(uuid.uuid4())
-    seg_path = os.path.join(sample_dir, f'{sample_name}.wav')
-    meta_path = os.path.join(meta_dir, f'{sample_name}.json')
-    
+    seg_path = os.path.join(sample_dir, f"{sample_name}.wav")
+    meta_path = os.path.join(meta_dir, f"{sample_name}.json")
+
     audio_meta["name"] = sample_name
-    
+
     # Save the segment as a WAV file
     scipy.io.wavfile.write(seg_path, audio_meta["sample_rate"], segment)
-    
+
     # Save the metadata as a JSON file
-    with open(meta_path, 'w', encoding='utf8') as fp:
+    with open(meta_path, "w", encoding="utf8") as fp:
         json.dump(audio_meta, fp)
 
+
 def generate_splits(out_dir, val_ratio=0.2, n_test=50, no_classes=True):
-    
     # here goes some REALLY UGLY code, if you are reading, I am sorry.
-    
-    sample_dir = os.path.join(out_dir, 'samples')
-    meta_dir = os.path.join(out_dir, 'metadata')
-    
+
+    sample_dir = os.path.join(out_dir, "samples")
+    meta_dir = os.path.join(out_dir, "metadata")
+
     if no_classes:
         print("Moving all files in sample dir to dummy folder...")
         os.makedirs(os.path.join(sample_dir, "dummy"), exist_ok=True)
         # move all sample_dir files to a dummy folder inside sample_dir
         for f in tqdm(os.listdir(sample_dir)):
             if f != "dummy":
-                shutil.move(os.path.join(sample_dir, f), os.path.join(sample_dir, 'dummy', f))
-    
-    splits_dir = os.path.join(out_dir, 'splits')
+                shutil.move(
+                    os.path.join(sample_dir, f), os.path.join(sample_dir, "dummy", f)
+                )
+
+    splits_dir = os.path.join(out_dir, "splits")
     os.makedirs(splits_dir, exist_ok=True)
-    
+
     print("Creating random train/val splits!")
     splitfolders.ratio(
-        sample_dir,
-        output=splits_dir,
-        seed=1337,
-        ratio=(1-val_ratio, val_ratio)
+        sample_dir, output=splits_dir, seed=1337, ratio=(1 - val_ratio, val_ratio)
     )
 
     # create test directory
-    os.makedirs(os.path.join(splits_dir, 'test'), exist_ok=True)
-    
+    os.makedirs(os.path.join(splits_dir, "test"), exist_ok=True)
+
     print(f"Moving {n_test} files from train to test...")
     # move n_test random files in train dir to test dir
     for f in tqdm(os.listdir(os.path.join(splits_dir, "train", "dummy"))[:n_test]):
-        shutil.move(os.path.join(splits_dir, 'train', "dummy", f), os.path.join(splits_dir, 'test'))
-    
+        shutil.move(
+            os.path.join(splits_dir, "train", "dummy", f),
+            os.path.join(splits_dir, "test"),
+        )
+
     print("Copying metadata to corresponding splits...")
     # move metadata to split folders
     for dirpath, dirnames, filenames in os.walk(splits_dir):
         for file_name in tqdm(filenames):
-            fn = file_name.split('.')[0]+'.json'
-            shutil.copy(os.path.join(meta_dir,fn), os.path.join(dirpath, fn))
-        
+            fn = file_name.split(".")[0] + ".json"
+            shutil.copy(os.path.join(meta_dir, fn), os.path.join(dirpath, fn))
+
     if no_classes:
         print("Deleting dummy folders in sample directory...")
         # move all files in sample_dir/dummy back to sample_dir and delete dummy dir
-        for f in tqdm(os.listdir(os.path.join(sample_dir, 'dummy'))):
+        for f in tqdm(os.listdir(os.path.join(sample_dir, "dummy"))):
             if f != "dummy":
-                shutil.move(os.path.join(sample_dir, 'dummy', f), os.path.join(sample_dir))
-        os.rmdir(os.path.join(sample_dir, 'dummy'))
-    
+                shutil.move(
+                    os.path.join(sample_dir, "dummy", f), os.path.join(sample_dir)
+                )
+        os.rmdir(os.path.join(sample_dir, "dummy"))
+
         # repeat for training, validation in splits directory
-        dir_list = ['train', 'val']
+        dir_list = ["train", "val"]
         for d in dir_list:
-            for f in tqdm(os.listdir(os.path.join(splits_dir, d, 'dummy'))):
+            for f in tqdm(os.listdir(os.path.join(splits_dir, d, "dummy"))):
                 if f != "dummy":
-                    shutil.move(os.path.join(splits_dir, d, "dummy", f), os.path.join(splits_dir,d))
-            os.rmdir(os.path.join(splits_dir, d, 'dummy'))
-    
+                    shutil.move(
+                        os.path.join(splits_dir, d, "dummy", f),
+                        os.path.join(splits_dir, d),
+                    )
+            os.rmdir(os.path.join(splits_dir, d, "dummy"))
+
     print("Splits created!")
-    
+
     return
