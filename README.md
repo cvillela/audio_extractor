@@ -36,15 +36,22 @@ From the project directory, run for help on the parameters:
 python -m audioext.pipelines.musicgen_dataset -h
 ```
 
+## Reduce Noise + Remove Silence
+Reduce noise and optionally remove silence in between sounds of files in a given directory. 
+From the project directory, run for help on the parameters: 
+```
+python -m audioext.pipelines.denoise -h
+```
+
 ## Next Steps
 ### TO-DO
 - [x] Reformat code to have a decoupled audio_segmenter utility
 - [x] Reformat code to have a decoupled audio_processer utility
 - [x] Jukebox extraction notebook to callable script
 - [x] Reformat pipelines for Musicgen Dataset Generation.
+- [X] Add Denoise + Remove Silence.
 - [ ] Reformat pipeline for Music Emotion Recognition.
 - [ ] Create Audio Metadata enriching pipelines.   
-- [ ] Add audio Denoise + Remove Silence.
 - [ ] Add bandwith extension and audio super-resolution?
 
 ### Known bugs
