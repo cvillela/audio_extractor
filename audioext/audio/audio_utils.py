@@ -5,15 +5,19 @@ from pydub import AudioSegment
 from scipy.signal import freqz
 import matplotlib.pyplot as plt
 
-from .audio_processer import get_butter_bandpass
-
-
-def list_wavs_from_dir(path):
+def list_wavs_from_dir(path, walk=True):
     file_paths = []
-    for dirpath, _, filenames in os.walk(path):
-        for file_name in filenames:
-            if file_name.endswith(".wav"):
-                file_paths.append(os.path.join(dirpath, file_name))
+    
+    if walk:
+        for dirpath, _, filenames in os.walk(path):
+            for file_name in filenames:
+                if file_name.endswith(".wav"):
+                    file_paths.append(os.path.join(dirpath, file_name))
+    else:
+        for item in os.listdir(path):
+            if os.path.isfile(os.path.join(path, item)) and item.endswith(".wav"):
+                file_paths.append(os.path.join(path, item))
+    
     return file_paths
 
 
@@ -107,11 +111,12 @@ def plot_fft(signal, sr, title="FFT"):
 
 def plot_bp_filter(
     sr,
-    order=6,
+    a,
+    b,
     low=1000,
     high=11000,
 ):
-    a, b = get_butter_bandpass(low, high, sr, order)
+    
     w, h = freqz(b, a, fs=sr, worN=8000)
     plt.subplot(2, 1, 1)
     plt.plot(w, np.abs(h), "b")

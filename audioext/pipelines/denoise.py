@@ -15,6 +15,7 @@ from ..audio.audio_processer import (
     ndarray32_to_audiosegment,
     bandpass_filter_signal,
     get_freq_domain,
+    normalize_unit
 )
 
 from ..audio.audio_utils import (
@@ -28,48 +29,39 @@ from ..audio.audio_utils import (
 
 def main(args):
     if args.output_dir is None:
-        output_dir = os.path.join(args.sample_dir, "processed/")
+        output_dir = os.path.join(args.samples_dir, "processed/")
 
     # Check if out directory exists, if not, create it
     os.makedirs(output_dir, exist_ok=True)
 
-    file_paths = list_wavs_from_dir(args.samples_dir)
+    file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
+            
     for f in tqdm(file_paths):
-        start = time()
-
-        s1 = time()
+        
         # load sample
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
         sr = audio.frame_rate
-        # print(f"Load :{time()-s1} secs")
-
-        s1 = time()
-        ### Normalize and Convert to float32
-        norm_audio = normalize_loudness(audio)
-        y = audiosegment_to_ndarray_32(norm_audio)
-        # print(f"Normalize + Convert : {time()-s1} secs")
-
-        s1 = time()
-        # denoise
-        y_red = nr.reduce_noise(y=y, sr=sr, stationary=args.stationary)
-        # print(f"Denoise : {time()-s1} secs")
-
+        
+        ### Convert to float32
+        y = audiosegment_to_ndarray_32(audio)
+        
+        # denoise -> 2 passes is more effective
+        y_red = nr.reduce_noise(y=y, sr=sr, stationary=True)
+        y_red = nr.reduce_noise(y=y_red, sr=sr, stationary=False)
+        
         y_final = y_red
-        s1 = time()
         if args.band_pass:
             # bandpass
             y_bp = bandpass_filter_signal(
-                y_red, sr, order=6, low=args.low, high=args.high, plot_filter=False
+                y_red, sr, order=6, low=args.low, high=args.high, plot=False
             )
             y_final = y_bp
-        # print(f"Bandpass : {time()-s1} secs")
         
-        s1 = time()
         # remove silence
         if args.remove_silence:
+            
             audio_denoised = ndarray32_to_audiosegment(y_final, frame_rate=sr)
-
             audio_chunks = split_on_silence(
                 audio_denoised,
                 min_silence_len=args.min_silence_len,
@@ -77,21 +69,16 @@ def main(args):
                 keep_silence=args.keep_silence,
                 seek_step=args.seek_step,
             )
-
             audio_nonsilent = sum(audio_chunks)
-            # print(f"Split on Silence {time()-s1} secs")
-
-            s1 = time()
+            audio_nonsilent = normalize_loudness(audio_nonsilent)
             y_final = audiosegment_to_ndarray_32(audio_nonsilent)
-            # print(f"Convert back : {time()-s1} secs")
 
-        # print(f"Pipe : {time() - start} seconds.")
-        # print(f"Original audio is {len(audio)/1000} seconds long.")
-        # print(f"Final audio is {len(audio_nonsilent)/1000} seconds long.")
+        # normalize unit and export
+        y_final = normalize_unit(y_final)
+        filename = f.split("/")[-1]
+        wavfile.write(os.path.join(output_dir, filename), rate=sr, data=y_final)
 
         if args.plot:
-            start = time()
-
             Y_db = get_freq_domain(y)
             Y_red = get_freq_domain(y_red)
             Y_bp = get_freq_domain(y_bp)
@@ -113,11 +100,7 @@ def main(args):
             )
             plot_time(y, sr=sr, title="Original")
             plot_time(y_final, sr=sr, title="Final")
-            # print(f"Plots : {time()-start} seconds.")
-
-        filename = f.split("/")[-1]
-        wavfile.write(os.path.join(output_dir, filename), rate=sr, data=y_final)
-
+            
 
 if __name__ == "__main__":
     # Create the argument parser
@@ -131,13 +114,6 @@ if __name__ == "__main__":
         "--output_dir",
         type=str,
         help="Path to directory to save the embeddings to. Defaults to samples_dir/processed.",
-    )
-    # Denoise args
-    parser.add_argument(
-        "--stationary",
-        default=False,
-        help="Stationary reduce noise. Default is False",
-        action=argparse.BooleanOptionalAction,
     )
     # Band pass arguments
     parser.add_argument(
@@ -175,10 +151,16 @@ if __name__ == "__main__":
         help="Minimal length to be considered silence. Default is 2000ms",
     )
     parser.add_argument(
-        "--silence_tresh",
+        "--silence_thresh",
         type=int,
-        default=-30,
+        default=-45,
         help="Values below this dB are considered silence. Default is -30dB",
+    )
+    parser.add_argument(
+        "--keep_silence",
+        type=int,
+        default=200,
+        help="Silence to keep between segments. Default is 500ms.",
     )
     parser.add_argument(
         "--seek_step",
@@ -186,13 +168,7 @@ if __name__ == "__main__":
         default=100,
         help="Seek step for segment on silence in ms. Default is 100ms.",
     )
-    parser.add_argument(
-        "--keep_silence",
-        type=int,
-        default=500,
-        help="Silence to keep between segments. Default is 500ms.",
-    )
-
+    
     parser.add_argument(
         "--plot",
         default=False,
