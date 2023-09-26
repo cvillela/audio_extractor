@@ -37,7 +37,7 @@ def main(args):
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
             
     for f in tqdm(file_paths):
-        
+        print(f)
         # load sample
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
@@ -52,24 +52,34 @@ def main(args):
         
         y_final = y_red
         if args.band_pass:
+            # nyquist
+            high = args.high
+            if args.high >= sr/2:
+                high = (sr/2) - 10 
+            
             # bandpass
             y_bp = bandpass_filter_signal(
-                y_red, sr, order=6, low=args.low, high=args.high, plot=False
+                y_red, sr, order=6, low=args.low, high=high, plot=False
             )
             y_final = y_bp
         
         # remove silence
         if args.remove_silence:
+            audio_nonsilent = 0
+            curr_thresh = args.silence_thresh
             
             audio_denoised = ndarray32_to_audiosegment(y_final, frame_rate=sr)
-            audio_chunks = split_on_silence(
-                audio_denoised,
-                min_silence_len=args.min_silence_len,
-                silence_thresh=args.silence_thresh,
-                keep_silence=args.keep_silence,
-                seek_step=args.seek_step,
-            )
-            audio_nonsilent = sum(audio_chunks)
+            
+            while audio_nonsilent == 0:
+                audio_chunks = split_on_silence(
+                    audio_denoised,
+                    min_silence_len=args.min_silence_len,
+                    silence_thresh=curr_thresh,
+                    keep_silence=args.keep_silence,
+                    seek_step=args.seek_step,
+                )
+                audio_nonsilent = sum(audio_chunks)
+                curr_thresh -= 7
             audio_nonsilent = normalize_loudness(audio_nonsilent)
             y_final = audiosegment_to_ndarray_32(audio_nonsilent)
 
