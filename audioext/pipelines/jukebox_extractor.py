@@ -4,12 +4,12 @@ import numpy as np
 import os
 import argparse
 
-from ..audio.audio_segmenter import segment_audio
-from ..audio.audio_utils import list_wavs_from_dir
+from ..audio.audio_segmenter import segment_audio, get_seg_len_fulltrack
+from ..audio.audio_utils import list_wavs_from_dir, get_len_wavs
 
 JUKEBOX_SR = 44100
 CTX_WINDOW_LENGTH = 1048576
-
+MAX_SEG_LEN_S = CTX_WINDOW_LENGTH/JUKEBOX_SR
 
 def extract_batch(audio_samples, meanpool=False, mult_factor=100):
     """
@@ -32,7 +32,6 @@ def extract_batch(audio_samples, meanpool=False, mult_factor=100):
         embs = embs.reshape(1, embs.shape[0], embs.shape[1])
 
     if meanpool:
-        print("Applying mean pooling to embeddings, mult factor is disconsidered")
         final_embs = embs
     else:
         split_embeddings = np.array_split(embs, mult_factor, axis=1)
@@ -42,14 +41,40 @@ def extract_batch(audio_samples, meanpool=False, mult_factor=100):
     return final_embs
 
 
-def extract_from_files(
+def aggregate_embs_by_track(emb_dict):
+    
+    print("Aggregating same track embeddings:")
+    print(f"Before: {len(emb_dict['embs'])} embeddings.")
+    
+    # finding same track embeddings by metadata original filename
+    filenames = {}
+    for i, meta in enumerate(emb_dict["meta"]):
+        if meta["filename"] not in filenames.keys():
+            filenames[meta["filename"]] = [i]
+        else:
+            filenames[meta["filename"]].append(i)
+    
+    new_emb_dict = {"embs": [], "meta": []}
+    
+    # Aggregate same origin embeddings and meta
+    for k, v in tqdm(filenames.items()):
+        to_aggregate = []
+        for index in v:
+            to_aggregate.append(emb_dict["embs"][index])
+        
+        new_emb_dict["embs"].append(np.mean(np.vstack(to_aggregate), axis=0))
+        new_emb_dict["meta"].append(emb_dict["meta"][v[0]])
+            
+    print(f"After: {len(new_emb_dict['embs'])} embeddings.")
+    return new_emb_dict
+
+def extract_segments(
     file_paths,
     out_dir,
     batch_size=4,
     meanpool=False,
     mult_factor=100,
     emb_chunk_size=1000,
-    verbose=False,
     **segment_kwargs,
 ):
     """
@@ -73,66 +98,140 @@ def extract_from_files(
     )
 
     i = 0
-    emb_list = []
-    sample_list = []
-    curr_batch = []
+    emb_dict = {"embs": [], "meta": []}
+    sample_dict = {"samples": [], "meta": []}
+    batch_dict = {"samples": [], "meta": []}
 
-    for f in tqdm(file_paths):
-        curr_samples, _ = segment_audio(f, **segment_kwargs)
-        sample_list.extend(curr_samples)
-
-        if len(sample_list) >= batch_size:
-            while len(sample_list) >= batch_size:
+    print(segment_kwargs)
+    for f in tqdm(file_paths):    
+        curr_samples, curr_meta = segment_audio(f, **segment_kwargs)        
+        sample_dict["samples"].extend(curr_samples)
+        sample_dict["meta"].extend(curr_meta)
+        
+        if len(sample_dict["samples"]) >= batch_size:
+            while len(sample_dict["samples"]) >= batch_size:
                 for _ in range(batch_size):
-                    curr_batch.append(sample_list.pop())
-                emb_list.append(
+                    batch_dict["samples"].append(sample_dict["samples"].pop())
+                    batch_dict["meta"].append(sample_dict["meta"].pop())
+                    
+                emb_dict["embs"].append(
                     extract_batch(
-                        curr_batch, meanpool=meanpool, mult_factor=mult_factor
+                        batch_dict["samples"], meanpool=meanpool, mult_factor=mult_factor
                     )
                 )
-                curr_batch = []
+                batch_dict["samples"] = []
+                batch_dict["meta"] = []
 
-        if len(emb_list) > emb_chunk_size:
-            i += 1
-            emb_list = np.vstack(emb_list)
-            np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
-            emb_list = []
+        if len(emb_dict["embs"]) > emb_chunk_size:
+            i += 1    
+            emb_dict["embs"] = np.vstack(emb_dict["embs"])
+            np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_dict["embs"])
+            emb_dict["embs"] = []
 
     # process last batch -> sample_list with < batch_size elements or emb_list with < emb_chunk_size elements
-    if len(sample_list) > 0 or len(emb_list) > 0:
-        while len(sample_list) > 0:
-            curr_batch.append(sample_list.pop())
+    if len(sample_dict["samples"]) > 0 or len(emb_dict["embs"]) > 0:
+        while len(sample_dict["samples"]) > 0:
+            batch_dict["samples"].append(sample_dict["samples"].pop())
+            batch_dict["meta"].append(sample_dict["meta"].pop())
 
-        if len(curr_batch) > 0:
+        if len(batch_dict["samples"]) > 0:
             n_batches = 0
+            
             # curr_batch needs to be of shape (batch_size, seg_len, n_channels) because of precomputed TOP_PRIOR
-            while len(curr_batch) < batch_size:
-                curr_batch.append(curr_batch[0])
+            while len(batch_dict["samples"]) < batch_size:
+                batch_dict["samples"].append(batch_dict["samples"][0])
+                batch_dict["meta"].append(batch_dict["meta"][0])
                 n_batches += 1
 
-            emb_list.append(
-                extract_batch(curr_batch, meanpool=meanpool, mult_factor=mult_factor)
+            emb_dict["embs"].append(
+                extract_batch(batch_dict["samples"], meanpool=meanpool, mult_factor=mult_factor)
             )
 
             # remove dummy batch from embs if it exists
             if n_batches > 0:
-                emb_list = emb_list[:-n_batches]
-
-        emb_list = np.vstack(emb_list)
+                emb_dict["embs"] = emb_dict["embs"][:-n_batches]
+                emb_dict["meta"] = emb_dict["meta"][:-n_batches]
+ 
         i += 1
-        np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_list)
-        curr_batch = []
-        emb_list = []
-
+        emb_dict["embs"] = np.vstack(emb_dict["embs"])
+        np.save(os.path.join(out_dir, f"m{mult_factor}_{i}.npy"), emb_dict["embs"])
+        
     return
+
+def extract_full_track(
+    file_paths,
+    out_dir,
+    emb_chunk_size=100000,
+    **segment_kwargs,
+):
+    """
+    Extracts audio samples from a list of file paths, processes them in batches, and saves the extracted embeddings to disk.
+
+    Parameters:
+    - file_paths (list): A list of file paths to the audio files.
+    - out_dir (str): The directory to save the extracted embeddings.
+    - batch_size (int, optional): The number of audio samples to process in each batch. Defaults to 4.
+    - meanpool (bool, optional): Whether to use mean pooling to calculate embeddings. Defaults to False.
+    - mult_factor (int, optional): Number of embeddings to be extracted from each audio segment. Defaults to 100.
+    - emb_chunk_size (int, optional): The maximum number of embeddings to save in each chunk. Defaults to 1000.
+    - **segment_kwargs: Additional keyword arguments to be passed to the segment_audio function.
+
+    Returns:
+    - None
+    """
+
+    print(
+        f"Extracting one mean embedding per track to {out_dir}."
+    )
+
+    i = 0
+    emb_dict = {"embs": [], "meta": []}
+
+    print(segment_kwargs)
+    for f in tqdm(file_paths):
+        file_len_s = get_len_wavs([f])*60*60
+        segment_kwargs["segment_length_s"] = get_seg_len_fulltrack(file_len_s, MAX_SEG_LEN_S)
+            
+        curr_samples, curr_meta = segment_audio(f, **segment_kwargs)     
+        curr_samples = np.mean(np.vstack(curr_samples), axis=0)
+                    
+        emb_dict["embs"].append(extract_batch(curr_samples, meanpool=True))
+        emb_dict["meta"].append(curr_meta[0])
+        
+        if len(emb_dict["embs"]) > emb_chunk_size:
+            i += 1
+            emb_dict["embs"] = np.vstack(emb_dict["embs"])
+            np.save(os.path.join(out_dir, f"emb_{i}.npy"), emb_dict["embs"])
+            emb_dict["embs"] = []
+    
+    # save remaining embs
+    i += 1
+    emb_dict["embs"] = np.vstack(emb_dict["embs"])
+    np.save(os.path.join(out_dir, f"emb_{i}.npy"), emb_dict["embs"])
+    emb_dict["embs"] = []
+    
+    return
+
 
 
 def main(args):
     # Check if segment length is in expected range
     assert args.seg_len <= CTX_WINDOW_LENGTH / JUKEBOX_SR, "Segment length is too long!"
 
+    if args.output_dir is None:
+        args.output_dir = os.path.join(args.samples_dir, "embeddings")
+    
     # Check if out directory exists, if not, create it
     os.makedirs(args.output_dir, exist_ok=True)
+    
+    
+    if args.full_track:
+        args.meanpool = True
+        args.mult_factor = 1
+        args.emb_chunk_size = 50000
+        args.overlap = 0.0
+        args.batch_size = 1
+        args.cutoff = "pad"
 
     # specify segmentation parameters
     seg_dict = {
@@ -146,18 +245,26 @@ def main(args):
     }
 
     # get file paths from sample dir
-    file_paths = list_wavs_from_dir(args.samples_dir)
+    file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
 
-    extract_from_files(
-        file_paths,
-        args.output_dir,
-        batch_size=args.batch_size,
-        meanpool=args.meanpool,
-        mult_factor=args.mult_factor,
-        emb_chunk_size=args.chunk_size,
-        verbose=args.verbose,
-        **seg_dict,
-    )
+    
+    if args.full_track:
+        extract_full_track(
+            file_paths,
+            args.output_dir,
+            emb_chunk_size=args.chunk_size,
+            **seg_dict
+        )
+    else:
+        extract_segments(
+            file_paths,
+            args.output_dir,
+            batch_size=args.batch_size,
+            meanpool=args.meanpool,
+            mult_factor=args.mult_factor,
+            emb_chunk_size=args.chunk_size,
+            **seg_dict,
+        )
 
 
 if __name__ == "__main__":
@@ -171,7 +278,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir", type=str, help="Path to directory to save the embeddings to."
     )
-
     parser.add_argument(
         "--batch_size", type=int, default=4, help="Batch size, defaults to 4."
     )
@@ -181,7 +287,12 @@ if __name__ == "__main__":
         help="Wether to perform mean pooling. Default is false (--no-meanpool)",
         action=argparse.BooleanOptionalAction,
     )
-
+    parser.add_argument(
+        "--full_track",
+        default=False,
+        help="Wether to extract a single embedding for each track. Default is false.",
+        action=argparse.BooleanOptionalAction,
+    )
     parser.add_argument(
         "--mult_factor",
         type=int,
@@ -191,10 +302,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--chunk_size",
         type=int,
-        default=1000,
-        help="Number of embedding chunks to save in each file for saving RAM. Defaults to 1000.",
+        default=100000,
+        help="Number of embedding chunks to save in each file for saving RAM. Defaults to 100000.",
     )
-
     parser.add_argument(
         "--seg_len",
         default=5,
@@ -204,15 +314,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cutoff",
         type=str,
-        default="crop",
-        help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad']. Default is crop",
+        default="leave",
+        help="Wether to ignore generated samples with length < seg_len, or pad them with silence. Can be ['crop', 'pad', 'leave']. Default is leave",
     )
     parser.add_argument(
         "--overlap",
+        type=float,
         default=0.0,
         help="Percentage of overlap between samples. Default is 0.00.",
     )
-
     parser.add_argument(
         "--verbose",
         default=False,

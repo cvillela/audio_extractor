@@ -8,6 +8,7 @@ import scipy.io.wavfile
 import splitfolders
 from tqdm import tqdm
 import shutil
+import math
 
 from .audio_processer import (
     normalize_unit,
@@ -99,7 +100,7 @@ def segment_audio(
     meta_list = []
 
     # segment into segment_length_s samples
-    segment_length_samples = segment_length_s * audio.frame_rate
+    segment_length_samples = math.ceil(segment_length_s * audio.frame_rate)
     step = int((1 - overlap) * segment_length_samples)
     for i in range(0, len(np_audio), step):
         # create segment
@@ -121,11 +122,11 @@ def segment_audio(
                 segment = np.concatenate((segment, pad), axis=0)
 
             elif cutoff == "leave":  # save sample smaller than segment_length_s
-                segment = audio[start_time : len(audio)]
+                segment = np_audio[start_time : len(np_audio)]
 
             elif cutoff == "crop":  # discard smaller sample
                 break
-
+            
         segment_list.append(segment)
         meta_list.append(audio_metadata)
 
@@ -229,3 +230,25 @@ def generate_splits(out_dir, val_ratio=0.2, n_test=50, no_classes=True):
     print("Splits created!")
 
     return
+
+
+def get_seg_len_fulltrack(audio_len, max_len):
+    """
+    Calculate the length of a segment for full track extraction, based on the given audio length and maximum segment length.
+
+    Parameters:
+    - audio_len (int): The total length of the audio in seconds.
+    - max_len (int): The maximum length of a segment in seconds.
+
+    Returns:
+    - float: The length of a segment based on the given audio length and maximum length in seconds.
+    """
+    if audio_len < max_len:
+        # return math.ceil(audio_len)
+        return audio_len
+    else:
+        i = 2
+        while audio_len/i > max_len :
+            i+=1
+        # return math.ceil(audio_len/i)
+        return audio_len/i

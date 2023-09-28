@@ -69,7 +69,7 @@ def main(args):
             curr_thresh = args.silence_thresh
             
             audio_denoised = ndarray32_to_audiosegment(y_final, frame_rate=sr)
-            
+            # audio_denoised = normalize_loudness(audio_denoised)
             while audio_nonsilent == 0:
                 audio_chunks = split_on_silence(
                     audio_denoised,
