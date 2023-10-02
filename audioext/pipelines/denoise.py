@@ -40,8 +40,9 @@ def main(args):
     for f in tqdm(file_paths):
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
+        audio = audio[args.start*1000:]
         sr = audio.frame_rate
-
+        
         ### Convert to float32
         y = audiosegment_to_ndarray_32(audio)
 
@@ -146,6 +147,13 @@ if __name__ == "__main__":
         type=int,
         default=10000,
         help="Filter frequencies above. Default is 11000Hz",
+    )
+    
+    parser.add_argument(
+        "--start",
+        type=float,
+        default=0,
+        help="Start (in seconds) of the segment. Default is 0.00s",
     )
 
     # Segment on Silence args
