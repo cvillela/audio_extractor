@@ -8,6 +8,7 @@ from pydub import AudioSegment
 
 import noisereduce as nr
 from pydub.silence import split_on_silence
+from pydub.effects import compress_dynamic_range
 from scipy.io import wavfile
 from ..audio.audio_processer import (
     normalize_loudness,
@@ -37,24 +38,22 @@ def main(args):
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
             
     for f in tqdm(file_paths):
-        print(f)
-        # load sample
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
         sr = audio.frame_rate
-        
+
         ### Convert to float32
         y = audiosegment_to_ndarray_32(audio)
-        
+
         # denoise -> 2 passes is more effective
         y_red = nr.reduce_noise(y=y, sr=sr, stationary=True)
         y_red = nr.reduce_noise(y=y_red, sr=sr, stationary=False)
-        
+
         y_final = y_red
         if args.band_pass:
             # nyquist
             high = args.high
-            if args.high >= sr/2:
+            if high >= sr/2:
                 high = (sr/2) - 10 
             
             # bandpass
@@ -62,14 +61,16 @@ def main(args):
                 y_red, sr, order=6, low=args.low, high=high, plot=False
             )
             y_final = y_bp
-        
+
         # remove silence
         if args.remove_silence:
             audio_nonsilent = 0
             curr_thresh = args.silence_thresh
             
             audio_denoised = ndarray32_to_audiosegment(y_final, frame_rate=sr)
-            # audio_denoised = normalize_loudness(audio_denoised)
+            audio_denoised = normalize_loudness(audio_denoised)
+            audio_denoised = compress_dynamic_range(audio_denoised)
+            
             while audio_nonsilent == 0:
                 audio_chunks = split_on_silence(
                     audio_denoised,
@@ -79,7 +80,7 @@ def main(args):
                     seek_step=args.seek_step,
                 )
                 audio_nonsilent = sum(audio_chunks)
-                curr_thresh -= 7
+                curr_thresh -= 10
             audio_nonsilent = normalize_loudness(audio_nonsilent)
             y_final = audiosegment_to_ndarray_32(audio_nonsilent)
 
@@ -91,16 +92,18 @@ def main(args):
         if args.plot:
             Y_db = get_freq_domain(y)
             Y_red = get_freq_domain(y_red)
-            Y_bp = get_freq_domain(y_bp)
             Y_final = get_freq_domain(y_final)
 
             plot_spectrogram(Y=Y_db, sr=sr, title="Original", y_axis="log", save=True)
             plot_spectrogram(
                 Y=Y_red, sr=sr, title="Reduce Noise", y_axis="log", save=True
             )
-            plot_spectrogram(
-                Y=Y_bp, sr=sr, title="Bandpass Filter", y_axis="log", save=True
-            )
+            
+            if args.band_pass:
+                Y_bp = get_freq_domain(y_bp)
+                plot_spectrogram(
+                    Y=Y_bp, sr=sr, title="Bandpass Filter", y_axis="log", save=True
+                )
             plot_spectrogram(
                 Y=Y_final,
                 sr=sr,
@@ -108,8 +111,7 @@ def main(args):
                 y_axis="log",
                 save=True,
             )
-            plot_time(y, sr=sr, title="Original")
-            plot_time(y_final, sr=sr, title="Final")
+            print(f"{len(y_final)/len(y):.0%} of original")
             
 
 if __name__ == "__main__":
@@ -132,6 +134,7 @@ if __name__ == "__main__":
         help="Band-Pass signal after denoising. Default is true",
         action=argparse.BooleanOptionalAction,
     )
+    
     parser.add_argument(
         "--low",
         type=int,
@@ -144,8 +147,6 @@ if __name__ == "__main__":
         default=10000,
         help="Filter frequencies above. Default is 11000Hz",
     )
-
-    
 
     # Segment on Silence args
     parser.add_argument(
