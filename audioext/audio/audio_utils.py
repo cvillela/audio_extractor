@@ -11,11 +11,11 @@ def list_wavs_from_dir(path, walk=True):
     if walk:
         for dirpath, _, filenames in os.walk(path):
             for file_name in filenames:
-                if file_name.endswith(".wav"):
+                if file_name.lower().endswith(".wav") or file_name.lower().endswith(".mp3") or file_name.lower().endswith(".flac") or file_name.lower().endswith(".m4a"):
                     file_paths.append(os.path.join(dirpath, file_name))
     else:
         for item in os.listdir(path):
-            if os.path.isfile(os.path.join(path, item)) and item.endswith(".wav"):
+            if os.path.isfile(os.path.join(path, item)) and (item.lower().endswith(".wav") or item.lower().endswith(".mp3") or item.lower().endswith(".flac") or item.lower().endswith(".m4a")):
                 file_paths.append(os.path.join(path, item))
     
     return file_paths
