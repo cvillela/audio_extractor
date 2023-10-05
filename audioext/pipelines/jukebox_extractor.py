@@ -213,6 +213,8 @@ def extract_full_track(
         embs = np.mean(np.vstack(embs), axis=0)
         # add curr row idx to metadata
         curr_meta[0]["idx"] = idx
+        curr_meta[0]["file_path"] = f
+        
         
         # append data
         emb_dict["embs"].append(embs)
