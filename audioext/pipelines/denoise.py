@@ -38,8 +38,14 @@ def main(args):
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
             
     for f in tqdm(file_paths):
+        print(f"Processing {f}")
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
+        
+        if len(audio) <= args.start*1000:
+            print(f"Skipping {f} as it is shorter than start time.")
+            continue
+        
         audio = audio[args.start*1000:]
         sr = audio.frame_rate
         
@@ -68,6 +74,7 @@ def main(args):
             audio_nonsilent = 0
             curr_thresh = args.silence_thresh
             
+            y_final = normalize_unit(y_final)
             audio_denoised = ndarray32_to_audiosegment(y_final, frame_rate=sr)
             audio_denoised = normalize_loudness(audio_denoised)
             audio_denoised = compress_dynamic_range(audio_denoised)

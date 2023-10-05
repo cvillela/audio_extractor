@@ -3,6 +3,8 @@ from tqdm import tqdm
 import numpy as np
 import os
 import argparse
+import json
+import pandas as pd
 
 from ..audio.audio_segmenter import segment_audio, get_seg_len_fulltrack
 from ..audio.audio_utils import list_wavs_from_dir, get_len_wavs
@@ -10,6 +12,7 @@ from ..audio.audio_utils import list_wavs_from_dir, get_len_wavs
 JUKEBOX_SR = 44100
 CTX_WINDOW_LENGTH = 1048576
 MAX_SEG_LEN_S = CTX_WINDOW_LENGTH/JUKEBOX_SR
+
 
 def extract_batch(audio_samples, meanpool=False, mult_factor=100):
     """
@@ -188,27 +191,52 @@ def extract_full_track(
     emb_dict = {"embs": [], "meta": []}
 
     print(segment_kwargs)
-    for f in tqdm(file_paths):
-        file_len_s = get_len_wavs([f])*60*60
-        segment_kwargs["segment_length_s"] = get_seg_len_fulltrack(file_len_s, MAX_SEG_LEN_S)
+    
+    for idx, f in enumerate(tqdm(file_paths)):
+    
+        # file_len_s = get_len_wavs([f])*60*60
+        # segment_kwargs["segment_length_s"] = get_seg_len_fulltrack(file_len_s, MAX_SEG_LEN_S)
+        
+        # segment the audio
+        curr_samples, curr_meta = segment_audio(f, **segment_kwargs)
+        if len(curr_samples) == 0:
+            print(f"No segments found for file {f}!")
+            continue
+        
+        embs = []
+        # extract each segment individually
+        for samp in curr_samples:
+            emb = extract_batch(samp, meanpool=True)
+            embs.append(emb)
             
-        curr_samples, curr_meta = segment_audio(f, **segment_kwargs)     
-        curr_samples = np.mean(np.vstack(curr_samples), axis=0)
-                    
-        emb_dict["embs"].append(extract_batch(curr_samples, meanpool=True))
+        # calculate mean of embeddings
+        embs = np.mean(np.vstack(embs), axis=0)
+        # add curr row idx to metadata
+        curr_meta[0]["idx"] = idx
+        
+        # append data
+        emb_dict["embs"].append(embs)
         emb_dict["meta"].append(curr_meta[0])
         
         if len(emb_dict["embs"]) > emb_chunk_size:
             i += 1
             emb_dict["embs"] = np.vstack(emb_dict["embs"])
             np.save(os.path.join(out_dir, f"emb_{i}.npy"), emb_dict["embs"])
+            
+            df = pd.DataFrame(emb_dict["meta"])
+            df.to_csv(os.path.join(out_dir, f"meta_{i}.csv"))
+                
             emb_dict["embs"] = []
+            emb_dict["meta"] = []
     
     # save remaining embs
     i += 1
+    
     emb_dict["embs"] = np.vstack(emb_dict["embs"])
     np.save(os.path.join(out_dir, f"emb_{i}.npy"), emb_dict["embs"])
-    emb_dict["embs"] = []
+    
+    df = pd.DataFrame(emb_dict["meta"])
+    df.to_csv(os.path.join(out_dir, f"meta_{i}.csv"))    
     
     return
 
@@ -227,9 +255,7 @@ def main(args):
     
     if args.full_track:
         args.meanpool = True
-        args.mult_factor = 1
         args.emb_chunk_size = 50000
-        args.overlap = 0.0
         args.batch_size = 1
         args.cutoff = "pad"
 
