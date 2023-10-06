@@ -37,6 +37,7 @@ def get_audio_metadata(audio, filename):
         "channels": audio.channels,
         "bytes_per_sample": audio.sample_width,  # 1 means 8 bit, 2 means 16 bit
         "filename": filename,
+        "duration": audio.duration_seconds,
     }
 
     return meta
@@ -95,6 +96,9 @@ def segment_audio(
 
     # turn into np array
     np_audio = audiosegment_to_ndarray_32(audio)
+    
+    if normalize_amplitude:
+        np_audio = normalize_unit(np_audio)
 
     segment_list = []
     meta_list = []
@@ -126,7 +130,9 @@ def segment_audio(
 
             elif cutoff == "crop":  # discard smaller sample
                 break
-            
+        
+        segment = segment.astype(np.float32)
+        
         segment_list.append(segment)
         meta_list.append(audio_metadata)
 
@@ -232,7 +238,7 @@ def generate_splits(out_dir, val_ratio=0.2, n_test=50, no_classes=True):
     return
 
 
-def get_seg_len_fulltrack(audio_len, max_len):
+def get_seg_len_fulltrack(audio_len, max_len=25):
     """
     Calculate the length of a segment for full track extraction, based on the given audio length and maximum segment length.
 
@@ -248,7 +254,7 @@ def get_seg_len_fulltrack(audio_len, max_len):
         return audio_len
     else:
         i = 2
-        while audio_len/i > max_len :
-            i+=1
+        while audio_len / i > max_len:
+            i += 1
         # return math.ceil(audio_len/i)
-        return audio_len/i
+        return audio_len / i

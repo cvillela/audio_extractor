@@ -16,7 +16,7 @@ from ..audio.audio_processer import (
     ndarray32_to_audiosegment,
     bandpass_filter_signal,
     get_freq_domain,
-    normalize_unit
+    normalize_unit,
 )
 
 from ..audio.audio_utils import (
@@ -36,19 +36,19 @@ def main(args):
     os.makedirs(output_dir, exist_ok=True)
 
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
-            
+
     for f in tqdm(file_paths):
         print(f"Processing {f}")
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
-        
-        if len(audio) <= args.start*1000:
+
+        if len(audio) <= args.start * 1000:
             print(f"Skipping {f} as it is shorter than start time.")
             continue
-        
-        audio = audio[args.start*1000:]
+
+        audio = audio[args.start * 1000 :]
         sr = audio.frame_rate
-        
+
         ### Convert to float32
         y = audiosegment_to_ndarray_32(audio)
 
@@ -60,9 +60,9 @@ def main(args):
         if args.band_pass:
             # nyquist
             high = args.high
-            if high >= sr/2:
-                high = (sr/2) - 10 
-            
+            if high >= sr / 2:
+                high = (sr / 2) - 10
+
             # bandpass
             y_bp = bandpass_filter_signal(
                 y_red, sr, order=6, low=args.low, high=high, plot=False
@@ -73,12 +73,12 @@ def main(args):
         if args.remove_silence:
             audio_nonsilent = 0
             curr_thresh = args.silence_thresh
-            
+
             y_final = normalize_unit(y_final)
             audio_denoised = ndarray32_to_audiosegment(y_final, frame_rate=sr)
             audio_denoised = normalize_loudness(audio_denoised)
             audio_denoised = compress_dynamic_range(audio_denoised)
-            
+
             while audio_nonsilent == 0:
                 audio_chunks = split_on_silence(
                     audio_denoised,
@@ -106,7 +106,7 @@ def main(args):
             plot_spectrogram(
                 Y=Y_red, sr=sr, title="Reduce Noise", y_axis="log", save=True
             )
-            
+
             if args.band_pass:
                 Y_bp = get_freq_domain(y_bp)
                 plot_spectrogram(
@@ -120,7 +120,7 @@ def main(args):
                 save=True,
             )
             print(f"{len(y_final)/len(y):.0%} of original")
-            
+
 
 if __name__ == "__main__":
     # Create the argument parser
@@ -142,7 +142,7 @@ if __name__ == "__main__":
         help="Band-Pass signal after denoising. Default is true",
         action=argparse.BooleanOptionalAction,
     )
-    
+
     parser.add_argument(
         "--low",
         type=int,
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         default=10000,
         help="Filter frequencies above. Default is 11000Hz",
     )
-    
+
     parser.add_argument(
         "--start",
         type=float,
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         default=100,
         help="Seek step for segment on silence in ms. Default is 100ms.",
     )
-    
+
     parser.add_argument(
         "--plot",
         default=False,

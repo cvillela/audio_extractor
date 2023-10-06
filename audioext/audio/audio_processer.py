@@ -8,6 +8,7 @@ from pydub.silence import split_on_silence
 import noisereduce as nr
 from .audio_utils import plot_bp_filter
 
+
 def normalize_unit(y):
     # ONLY SUPPORTS MONO
     norm_factor = np.abs(y).max()

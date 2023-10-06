@@ -1,1 +1,1 @@
-from . import audio, pipelines, scripts
+from . import audio, pipelines, scripts, models
