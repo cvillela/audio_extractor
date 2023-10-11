@@ -5,6 +5,7 @@ import argparse
 from tqdm import tqdm
 from time import time
 from pydub import AudioSegment
+from pyannote.audio import Pipeline
 
 import noisereduce as nr
 from pydub.silence import split_on_silence
@@ -27,6 +28,8 @@ from ..audio.audio_utils import (
     plot_fft,
 )
 
+from ..constants import constants
+
 
 def main(args):
     if args.output_dir is None:
@@ -34,21 +37,39 @@ def main(args):
 
     # Check if out directory exists, if not, create it
     os.makedirs(output_dir, exist_ok=True)
+    
+    if args.remove_speech:
+        voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
+                                        use_auth_token=constants.HF_AUTH_TOKEN)
 
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
 
     for f in tqdm(file_paths):
         print(f"Processing {f}")
+
+        
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
-
-        if len(audio) <= args.start * 1000:
-            print(f"Skipping {f} as it is shorter than start time.")
-            continue
-
-        audio = audio[args.start * 1000 :]
         sr = audio.frame_rate
 
+        # remove speech
+        if args.remove_speech:
+            output = voice_detection_pipeline(f)
+            se = []
+            for speech in output.get_timeline().support():
+                se.append([speech.start*1000, speech.end*1000])
+            start_pos = 0
+            no_speech = AudioSegment.silent(duration=0)
+                
+            for start, end in se:
+                print(start, end)
+                no_speech = no_speech+audio[start_pos:start]
+                start_pos = end
+
+            no_speech = no_speech+audio[start_pos:]
+            audio = no_speech
+            
+        
         ### Convert to float32
         y = audiosegment_to_ndarray_32(audio)
 
@@ -161,6 +182,13 @@ if __name__ == "__main__":
         type=float,
         default=0,
         help="Start (in seconds) of the segment. Default is 0.00s",
+    )
+
+    parser.add_argument(
+        "--remove_speech",
+        default=True,
+        help="Wether to remove speech. Default is true",
+        action=argparse.BooleanOptionalAction,
     )
 
     # Segment on Silence args
