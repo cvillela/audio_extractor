@@ -34,6 +34,8 @@ from ..constants import constants
 def main(args):
     if args.output_dir is None:
         output_dir = os.path.join(args.samples_dir, "processed/")
+    else:
+        output_dir = args.output_dir
 
     # Check if out directory exists, if not, create it
     os.makedirs(output_dir, exist_ok=True)
