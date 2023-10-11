@@ -47,7 +47,7 @@ def main(args):
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
 
     for f in tqdm(file_paths):
-        print(f"Processing {f}")
+        # print(f"Processing {f}")
 
         
         audio = AudioSegment.from_file(f)
@@ -64,7 +64,6 @@ def main(args):
             no_speech = AudioSegment.silent(duration=0)
                 
             for start, end in se:
-                print(start, end)
                 no_speech = no_speech+audio[start_pos:start]
                 start_pos = end
 
