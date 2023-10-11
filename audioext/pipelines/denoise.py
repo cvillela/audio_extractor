@@ -177,12 +177,12 @@ if __name__ == "__main__":
         help="Filter frequencies above. Default is 11000Hz",
     )
 
-    parser.add_argument(
-        "--start",
-        type=float,
-        default=0,
-        help="Start (in seconds) of the segment. Default is 0.00s",
-    )
+    # parser.add_argument(
+    #     "--start",
+    #     type=float,
+    #     default=0,
+    #     help="Start (in seconds) of the segment. Default is 0.00s",
+    # )
 
     parser.add_argument(
         "--remove_speech",
