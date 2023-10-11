@@ -96,7 +96,7 @@ def segment_audio(
 
     # turn into np array
     np_audio = audiosegment_to_ndarray_32(audio)
-    
+
     if normalize_amplitude:
         np_audio = normalize_unit(np_audio)
 
@@ -130,9 +130,9 @@ def segment_audio(
 
             elif cutoff == "crop":  # discard smaller sample
                 break
-        
+
         segment = segment.astype(np.float32)
-        
+
         segment_list.append(segment)
         meta_list.append(audio_metadata)
 

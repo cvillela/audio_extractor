@@ -7,14 +7,15 @@ from hear_mn import mn40_all_se_mel_avgs
 
 
 from ..audio.audio_segmenter import segment_audio, get_seg_len_fulltrack
-from..audio.audio_utils import get_len_wavs
+from ..audio.audio_utils import get_len_wavs
+
 MN_SR = 32000
 MN_MAX_SEG_LEN_S = 10
 
+
 def extract_one_track(audio_samples, wrapper):
-    
     embs = []
-    
+
     for audio in audio_samples:
         audio = torch.from_numpy(audio).unsqueeze(0)
         embed = mn40_all_se_mel_avgs.get_scene_embeddings(audio, wrapper)
@@ -22,9 +23,8 @@ def extract_one_track(audio_samples, wrapper):
         if np.isnan(embed).any():
             print("nan sample")
         embs.append(embed)
-        
-    
-    embs = np.mean(np.vstack(embs), axis=0)    
+
+    embs = np.mean(np.vstack(embs), axis=0)
     return embs
 
 
@@ -59,8 +59,10 @@ def extract_full_track(
     wrapper = mn40_all_se_mel_avgs.load_model(model_name="mn40_as_ext").cuda()
 
     for idx, f in enumerate(tqdm(file_paths)):
-        file_len_s = get_len_wavs([f])*60*60
-        segment_kwargs["segment_length_s"] = get_seg_len_fulltrack(file_len_s, max_len=MN_MAX_SEG_LEN_S)
+        file_len_s = get_len_wavs([f]) * 60 * 60
+        segment_kwargs["segment_length_s"] = get_seg_len_fulltrack(
+            file_len_s, max_len=MN_MAX_SEG_LEN_S
+        )
 
         # segment the audio
         curr_samples, curr_meta = segment_audio(f, **segment_kwargs)
@@ -70,7 +72,7 @@ def extract_full_track(
             continue
 
         embs = extract_one_track(curr_samples, wrapper)
-        
+
         # add curr row idx to metadata
         curr_meta[0]["idx"] = idx
         curr_meta[0]["file_path"] = f
