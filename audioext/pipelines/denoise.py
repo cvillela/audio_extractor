@@ -61,8 +61,7 @@ def main(args):
             for speech in output.get_timeline().support():
                 se.append([speech.start*1000, speech.end*1000])
             start_pos = 0
-            no_speech = AudioSegment.silent(duration=0)
-                
+            no_speech = AudioSegment.silent(duration=0)    
             for start, end in se:
                 no_speech = no_speech+audio[start_pos:start]
                 start_pos = end
