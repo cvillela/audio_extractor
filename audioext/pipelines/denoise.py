@@ -45,7 +45,6 @@ def main(args):
                                         use_auth_token=constants.HF_AUTH_TOKEN)
 
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
-    file_paths = file_paths[468:]
 
     for f in tqdm(file_paths):
         print(f"Processing {f}")
