@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # Parse the arguments
     args = parser.parse_args()
 
-
+    start = time()
     if args.output_dir is None:
         output_dir = os.path.join(args.samples_dir, "no_speech/")
         args.output_dir = output_dir
@@ -164,3 +164,4 @@ if __name__ == "__main__":
 
     with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
+    print(f"Done in {time()-start} secondss!")
