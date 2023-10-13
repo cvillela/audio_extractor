@@ -151,6 +151,14 @@ if __name__ == "__main__":
         type=str,
         help="Path to directory to save the embeddings to. Defaults to samples_dir/processed.",
     )
+
+    parser.add_argument(
+        "--n_processes",
+        type=int,
+        default=multiprocessing.cpu_count(),
+        help="Number of processes to use. Defaults to the number of available CPUs.",
+    )
+
     # Band pass arguments
     parser.add_argument(
         "--band_pass",
@@ -239,8 +247,6 @@ if __name__ == "__main__":
     # Create a list of argument tuples
     args_list = [(args, f) for f in file_paths]
 
-    # Get the number of available CPUs
-    num_processes = multiprocessing.cpu_count()
 
-    with multiprocessing.Pool(processes=num_processes) as pool:
+    with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
