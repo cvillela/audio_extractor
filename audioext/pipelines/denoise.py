@@ -145,6 +145,15 @@ if __name__ == "__main__":
         help="Number of processes to use. Defaults to the number of available CPUs.",
     )
     
+    # remove_speech
+    parser.add_argument(
+        "--remove_speech",
+        default=True,
+        help="Wether to remove speech. Default is true",
+        action=argparse.BooleanOptionalAction,
+    )
+
+    
     # Denoise args
     parser.add_argument(
         "--denoise",
@@ -172,13 +181,6 @@ if __name__ == "__main__":
         type=int,
         default=10000,
         help="Filter frequencies above. Default is 11000Hz",
-    )
-
-    parser.add_argument(
-        "--remove_speech",
-        default=True,
-        help="Wether to remove speech. Default is true",
-        action=argparse.BooleanOptionalAction,
     )
 
     # Segment on Silence args
