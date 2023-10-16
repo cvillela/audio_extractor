@@ -247,6 +247,5 @@ if __name__ == "__main__":
     # Create a list of argument tuples
     args_list = [(args, f) for f in file_paths]
 
-
     with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
