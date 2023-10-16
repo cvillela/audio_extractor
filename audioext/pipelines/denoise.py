@@ -34,8 +34,8 @@ from ..constants import constants
 
 def denoise_wrapper(args_tuple):
     # Unpack the tuple
-    args, f = args_tuple
-    return denoise_single(f, args,)
+    f, args = args_tuple
+    return denoise_single(f, args)
 
 def denoise_single(f, args):
     print(f"Processing {f}")   
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
 
     # Create a list of argument tuples
-    args_list = [(args, f) for f in file_paths]
+    args_list = [(f, args) for f in file_paths]
 
     with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
