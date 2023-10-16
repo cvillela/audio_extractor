@@ -59,7 +59,12 @@ def extract_full_track(
     wrapper = mn40_all_se_mel_avgs.load_model(model_name="mn40_as_ext").cuda()
 
     for idx, f in enumerate(tqdm(file_paths)):
+        # print("Processing file: ", f)
         file_len_s = get_len_wavs([f]) * 60 * 60
+        if file_len_s <= 1:
+            print("skipping file: ", f, " because it is too short")
+            continue
+        
         segment_kwargs["segment_length_s"] = get_seg_len_fulltrack(
             file_len_s, max_len=MN_MAX_SEG_LEN_S
         )
