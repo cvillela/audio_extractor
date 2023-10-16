@@ -231,5 +231,7 @@ if __name__ == "__main__":
 
     # Parse the arguments
     args = parser.parse_args()
-
+    start = time()
     main(args)
+    end = time()
+    print(f"Took {end-start} seconds!")
