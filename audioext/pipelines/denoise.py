@@ -5,7 +5,11 @@ import argparse
 from tqdm import tqdm
 from time import time
 from pydub import AudioSegment
+
+from pyannote.audio import Model
+from pyannote.audio.pipelines import VoiceActivityDetection
 from pyannote.audio import Pipeline
+
 import multiprocessing
 from multiprocessing import Pool
 
@@ -34,10 +38,50 @@ from ..constants import constants
 
 def denoise_wrapper(args_tuple):
     # Unpack the tuple
-    f, args = args_tuple
-    return denoise_single(f, args)
+    f, args, se = args_tuple
+    return denoise_single(f, args, se)
 
-def denoise_single(f, args):
+
+def get_speech_markers(f, voice_detection_pipeline):      
+        
+        output = voice_detection_pipeline(f)        
+        se = []
+        for speech in output.get_timeline().support():
+            se.append([speech.start*1000, speech.end*1000])
+        return se
+
+
+def remove_silence(y, sr):
+    
+    y = normalize_unit(y)
+    audio = ndarray32_to_audiosegment(y, frame_rate=sr)
+    audio = normalize_loudness(audio)
+    audio = compress_dynamic_range(audio)
+    audio_nonsilent = 0
+    curr_thresh = args.silence_thresh
+
+    count = 0
+    while audio_nonsilent == 0 and count <= 2:
+        audio_chunks = split_on_silence(
+            audio,
+            min_silence_len=args.min_silence_len,
+            silence_thresh=curr_thresh,
+            keep_silence=args.keep_silence,
+            seek_step=args.seek_step,
+        )
+        audio_nonsilent = sum(audio_chunks)
+        curr_thresh -= 10
+        count+=1
+    if audio_nonsilent == 0:
+        print(f"Cant remove silence in file {f}")
+        with open("errors.txt", "a") as err_file:
+            err_file.write(f"file {f}-> remove silence failed." + os.linesep)
+    else:
+        audio_nonsilent = normalize_loudness(audio_nonsilent)
+        y = audiosegment_to_ndarray_32(audio_nonsilent)
+        return y
+
+def denoise_single(f, args, se):
     print(f"Processing {f}")   
     
     try:    
@@ -51,13 +95,6 @@ def denoise_single(f, args):
     
     # remove speech
     if args.remove_speech:
-        voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
-                                        use_auth_token=constants.HF_AUTH_TOKEN)
-        
-        output = voice_detection_pipeline(f)
-        se = []
-        for speech in output.get_timeline().support():
-            se.append([speech.start*1000, speech.end*1000])
         start_pos = 0
         no_speech = AudioSegment.silent(duration=0)    
         for start, end in se:
@@ -91,39 +128,25 @@ def denoise_single(f, args):
 
     # remove silence
     if args.remove_silence:
-        audio_nonsilent = 0
-        curr_thresh = args.silence_thresh
-
-        y = normalize_unit(y)
-        audio = ndarray32_to_audiosegment(y, frame_rate=sr)
-        audio = normalize_loudness(audio)
-        audio = compress_dynamic_range(audio)
-        
-        count = 0
-        while audio_nonsilent == 0 and count <= 5:
-            audio_chunks = split_on_silence(
-                audio,
-                min_silence_len=args.min_silence_len,
-                silence_thresh=curr_thresh,
-                keep_silence=args.keep_silence,
-                seek_step=args.seek_step,
-            )
-            audio_nonsilent = sum(audio_chunks)
-            curr_thresh -= 10
-            count+=1
-        if audio_nonsilent == 0:
-            print(f"Cant remove silence in file {f}")
-            with open("errors.txt", "a") as err_file:
-                err_file.write(f"file {f}-> remove silence failed." + os.linesep)
-        else:
-            audio_nonsilent = normalize_loudness(audio_nonsilent)
-            y = audiosegment_to_ndarray_32(audio_nonsilent)
-
+        y_new = remove_silence(y, sr)
+        if y_new is not None:
+            y = y_new
+            
+        # save no speech and no denoise
+        if args.save_no_speech:
+            y_no_speech = audiosegment_to_ndarray_32(no_speech)
+            y_new = remove_silence(y_no_speech, sr)
+            if y_new is not None:
+                y_no_speech = y_new
+            y_no_speech = normalize_unit(y_no_speech)
+            filename = f.split("/")[-1]
+            wavfile.write(os.path.join(args.no_speech_output_dir, filename), rate=sr, data=y_no_speech)    
+            
     # normalize unit and export
     y = normalize_unit(y)
     filename = f.split("/")[-1]
     wavfile.write(os.path.join(args.output_dir, filename), rate=sr, data=y)
-
+    
 if __name__ == "__main__":
     # Create the argument parser
     parser = argparse.ArgumentParser(description="Parsing Arguments")
@@ -135,7 +158,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_dir",
         type=str,
-        help="Path to directory to save the embeddings to. Defaults to samples_dir/processed.",
+        help="Path to directory to save the denoised audio to. Defaults to samples_dir/processed.",
+    )
+    parser.add_argument(
+        "--no_speech_output_dir",
+        type=str,
+        help="Path to directory to save the no speech audio to. Defaults to samples_dir/no_speech.",
     )
 
     parser.add_argument(
@@ -143,6 +171,13 @@ if __name__ == "__main__":
         type=int,
         default=multiprocessing.cpu_count(),
         help="Number of processes to use. Defaults to the number of available CPUs.",
+    )
+    
+    parser.add_argument(
+        "--save_no_speech",
+        default=False,
+        help="Wether to save NO SPEECH audio. Defaults to false",
+        action=argparse.BooleanOptionalAction,
     )
     
     # remove_speech
@@ -225,21 +260,51 @@ if __name__ == "__main__":
         args.output_dir = output_dir
     else:
         output_dir = args.output_dir
-
+    
     # Check if out directory exists, if not, create it
     os.makedirs(output_dir, exist_ok=True)
-    
-    if args.remove_speech:
-        voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
-                                        use_auth_token=constants.HF_AUTH_TOKEN)
+        
+    if args.save_no_speech:
+        if args.no_speech_output_dir is None:
+            no_speech_output_dir = os.path.join(args.samples_dir, "no_speech/")
+            args.no_speech_output_dir = no_speech_output_dir
+        else:
+            no_speech_output_dir = args.no_speech_output_dir
+        # Check if out directory exists, if not, create it
+        os.makedirs(no_speech_output_dir, exist_ok=True)
 
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
 
+    if args.remove_speech:
+        
+        print(f"Getting speech markers from {len(file_paths)} files!")
+        voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
+                                        use_auth_token=constants.HF_AUTH_TOKEN)
+        
+        # Instantiate voice activity detection model
+        # vad_model = Model.from_pretrained("pyannote/segmentation-3.0", 
+        #                     use_auth_token=constants.HF_AUTH_TOKEN)
+        # voice_detection_pipeline = VoiceActivityDetection(segmentation=vad_model)
+        # HYPER_PARAMETERS = {
+        #     # remove speech regions shorter than that many seconds.
+        #     "min_duration_on": 0.0,
+        #     # fill non-speech regions shorter than that many seconds.
+        #     "min_duration_off": 0.0
+        # }
+        # voice_detection_pipeline.instantiate(HYPER_PARAMETERS)
+        
+        speech_markers = []
+        for f in tqdm(file_paths):
+            speech_markers.append(get_speech_markers(f, voice_detection_pipeline))
+        print("Done!")
+    else:
+        speech_markers = [[] for _ in file_paths]
+        
     # Create a list of argument tuples
-    args_list = [(f, args) for f in file_paths]
+    args_list = [(f, args, se) for f, se in zip(file_paths, speech_markers)]
 
     with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
-        
+    
     end = time()
     print(f"Multiprocess took {end-start} seconds")
