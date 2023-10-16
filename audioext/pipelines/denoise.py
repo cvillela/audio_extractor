@@ -153,7 +153,6 @@ if __name__ == "__main__":
         action=argparse.BooleanOptionalAction,
     )
 
-    
     # Denoise args
     parser.add_argument(
         "--denoise",
@@ -217,7 +216,10 @@ if __name__ == "__main__":
 
     # Parse the arguments
     args = parser.parse_args()
-
+    
+    print(f"There are {args.n_processes} processes.")
+    start = time()
+    
     if args.output_dir is None:
         output_dir = os.path.join(args.samples_dir, "processed/")
         args.output_dir = output_dir
@@ -238,3 +240,6 @@ if __name__ == "__main__":
 
     with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
+        
+    end = time()
+    print(f"Multiprocess took {end-start} seconds")
