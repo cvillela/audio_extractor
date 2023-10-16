@@ -38,19 +38,22 @@ def denoise_wrapper(args_tuple):
     return denoise_single(f, args,)
 
 def denoise_single(f, args):
-        
+    print(f"Processing {f}")   
+    
+    try:    
+        audio = AudioSegment.from_file(f)
+        audio = audio.set_channels(1)
+    except Exception as e:
+        print(f"Found error {e} in file {f}")
+        with open("errors.txt", "a") as err_file:
+            err_file.write(f"file {f}-> {str(e)}" + os.linesep)
+        return
+    
+    # remove speech
     if args.remove_speech:
         voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
                                         use_auth_token=constants.HF_AUTH_TOKEN)
-    
-    print(f"Processing {f}")
-    
-    audio = AudioSegment.from_file(f)
-    audio = audio.set_channels(1)
-    sr = audio.frame_rate
-
-    # remove speech
-    if args.remove_speech:
+        
         output = voice_detection_pipeline(f)
         se = []
         for speech in output.get_timeline().support():
@@ -60,19 +63,20 @@ def denoise_single(f, args):
         for start, end in se:
             no_speech = no_speech+audio[start_pos:start]
             start_pos = end
-
+            
         no_speech = no_speech+audio[start_pos:]
         audio = no_speech
         
-    
-    ### Convert to float32
+    # np audio
+    sr = audio.frame_rate
     y = audiosegment_to_ndarray_32(audio)
 
-    # denoise -> 2 passes is more effective
-    y_red = nr.reduce_noise(y=y, sr=sr, stationary=True)
-    y_red = nr.reduce_noise(y=y_red, sr=sr, stationary=False)
-
-    y_final = y_red
+    if args.denoise:    
+        # denoise -> 2 passes is more effective
+        y_red = nr.reduce_noise(y=y, sr=sr, stationary=True)
+        y_red = nr.reduce_noise(y=y_red, sr=sr, stationary=False)
+        y = y_red
+        
     if args.band_pass:
         # nyquist
         high = args.high
@@ -81,23 +85,24 @@ def denoise_single(f, args):
 
         # bandpass
         y_bp = bandpass_filter_signal(
-            y_red, sr, order=6, low=args.low, high=high, plot=False
+            y, sr, order=6, low=args.low, high=high, plot=False
         )
-        y_final = y_bp
+        y = y_bp
 
     # remove silence
     if args.remove_silence:
         audio_nonsilent = 0
         curr_thresh = args.silence_thresh
 
-        y_final = normalize_unit(y_final)
-        audio_denoised = ndarray32_to_audiosegment(y_final, frame_rate=sr)
-        audio_denoised = normalize_loudness(audio_denoised)
-        audio_denoised = compress_dynamic_range(audio_denoised)
-
-        while audio_nonsilent == 0:
+        y = normalize_unit(y)
+        audio = ndarray32_to_audiosegment(y, frame_rate=sr)
+        audio = normalize_loudness(audio)
+        audio = compress_dynamic_range(audio)
+        
+        count = 0
+        while audio_nonsilent == 0 and count <= 5:
             audio_chunks = split_on_silence(
-                audio_denoised,
+                audio,
                 min_silence_len=args.min_silence_len,
                 silence_thresh=curr_thresh,
                 keep_silence=args.keep_silence,
@@ -105,38 +110,19 @@ def denoise_single(f, args):
             )
             audio_nonsilent = sum(audio_chunks)
             curr_thresh -= 10
-        audio_nonsilent = normalize_loudness(audio_nonsilent)
-        y_final = audiosegment_to_ndarray_32(audio_nonsilent)
+            count+=1
+        if audio_nonsilent == 0:
+            print(f"Cant remove silence in file {f}")
+            with open("errors.txt", "a") as err_file:
+                err_file.write(f"file {f}-> remove silence failed." + os.linesep)
+        else:
+            audio_nonsilent = normalize_loudness(audio_nonsilent)
+            y = audiosegment_to_ndarray_32(audio_nonsilent)
 
     # normalize unit and export
-    y_final = normalize_unit(y_final)
+    y = normalize_unit(y)
     filename = f.split("/")[-1]
-    wavfile.write(os.path.join(args.output_dir, filename), rate=sr, data=y_final)
-
-    if args.plot:
-        Y_db = get_freq_domain(y)
-        Y_red = get_freq_domain(y_red)
-        Y_final = get_freq_domain(y_final)
-
-        plot_spectrogram(Y=Y_db, sr=sr, title="Original", y_axis="log", save=True)
-        plot_spectrogram(
-            Y=Y_red, sr=sr, title="Reduce Noise", y_axis="log", save=True
-        )
-
-        if args.band_pass:
-            Y_bp = get_freq_domain(y_bp)
-            plot_spectrogram(
-                Y=Y_bp, sr=sr, title="Bandpass Filter", y_axis="log", save=True
-            )
-        plot_spectrogram(
-            Y=Y_final,
-            sr=sr,
-            title="Final - Remove Silence",
-            y_axis="log",
-            save=True,
-        )
-        print(f"{len(y_final)/len(y):.0%} of original")
-
+    wavfile.write(os.path.join(args.output_dir, filename), rate=sr, data=y)
 
 if __name__ == "__main__":
     # Create the argument parser
@@ -157,6 +143,14 @@ if __name__ == "__main__":
         type=int,
         default=multiprocessing.cpu_count(),
         help="Number of processes to use. Defaults to the number of available CPUs.",
+    )
+    
+    # Denoise args
+    parser.add_argument(
+        "--denoise",
+        default=True,
+        help="Denoise signal from background noise. Default is true",
+        action=argparse.BooleanOptionalAction,
     )
 
     # Band pass arguments
@@ -217,13 +211,6 @@ if __name__ == "__main__":
         type=int,
         default=100,
         help="Seek step for segment on silence in ms. Default is 100ms.",
-    )
-
-    parser.add_argument(
-        "--plot",
-        default=False,
-        help="Wether to plot data. Default is false (--no-plot)",
-        action=argparse.BooleanOptionalAction,
     )
 
     # Parse the arguments
