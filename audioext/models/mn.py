@@ -14,17 +14,21 @@ MN_MAX_SEG_LEN_S = 10
 
 
 def extract_one_track(audio_samples, wrapper):
-    embs = []
+    print(len(audio_samples))
+    audio_tensor = torch.stack([torch.from_numpy(audio) for audio in audio_samples])
+    embs = mn40_all_se_mel_avgs.get_scene_embeddings(audio_tensor, wrapper)
+    embs = embs.cpu().numpy()
+    print(embs.shape)
+    # embs = []
+    # for audio in audio_samples:
+    #     audio = torch.from_numpy(audio).unsqueeze(0)
+    #     embed = mn40_all_se_mel_avgs.get_scene_embeddings(audio, wrapper)
+    #     embed = embed.cpu().numpy()
+    #     if np.isnan(embed).any():
+    #         print("nan sample")
+    #     embs.append(embed)
 
-    for audio in audio_samples:
-        audio = torch.from_numpy(audio).unsqueeze(0)
-        embed = mn40_all_se_mel_avgs.get_scene_embeddings(audio, wrapper)
-        embed = embed.cpu().numpy()
-        if np.isnan(embed).any():
-            print("nan sample")
-        embs.append(embed)
-
-    embs = np.mean(np.vstack(embs), axis=0)
+    # embs = np.mean(np.vstack(embs), axis=0)
     return embs
 
 
