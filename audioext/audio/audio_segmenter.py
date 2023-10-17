@@ -118,7 +118,7 @@ def segment_audio(
                 if (
                     len(segment) < 0.8 * segment_length_samples
                 ):  # pad at most 20% of the signal
-                    break
+                    continue
 
                 # Pad with 0s
                 pad_len = segment_length_samples - len(segment)
@@ -129,7 +129,7 @@ def segment_audio(
                 segment = np_audio[start_time : len(np_audio)]
 
             elif cutoff == "crop":  # discard smaller sample
-                break
+                continue
 
         segment = segment.astype(np.float32)
 
