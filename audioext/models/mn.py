@@ -15,8 +15,8 @@ MN_MAX_SEG_LEN_S = 10
 
 def extract_one_track(audio_samples, wrapper):
     audio_tensor = torch.stack([torch.from_numpy(audio) for audio in audio_samples])
-    if audio_tensor.shape[1] < MN_SR:
-        print("Segment is less than 0.5s, discarding!")
+    if audio_tensor.shape[1] < 1024:
+        print("Segment is less than PAD/2, discarding!")
         return
     
     embs = mn40_all_se_mel_avgs.get_scene_embeddings(audio_tensor, wrapper)
