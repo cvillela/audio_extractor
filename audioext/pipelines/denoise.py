@@ -282,7 +282,7 @@ if __name__ == "__main__":
     file_paths = list_wavs_from_dir(args.samples_dir, walk=False)
 
     if args.remove_speech:
-        
+        start_speech = time()
         print(f"Getting speech markers from {len(file_paths)} files!")
         voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
                                         use_auth_token=constants.HF_AUTH_TOKEN)
@@ -290,15 +290,20 @@ if __name__ == "__main__":
         speech_markers = []
         for f in tqdm(file_paths):
             speech_markers.append(get_speech_markers(f, voice_detection_pipeline))
-        print("Done!")
+        print("Done in ", time()-start_speech, "seconds!")
     else:
         speech_markers = [[] for _ in file_paths]
         
     # Create a list of argument tuples
     args_list = [(f, args, se) for f, se in zip(file_paths, speech_markers)]
 
+    start_denoise = time()
+    print("Starting Denoise!")
+    
     with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
+    
+    print("Done in ", time()-start_denoise, "seconds!")
     
     end = time()
     print(f"Multiprocess took {end-start} seconds")
