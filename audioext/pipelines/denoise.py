@@ -82,10 +82,23 @@ def denoise_single(f, args, se):
     y = audiosegment_to_ndarray_32(audio)
 
     if args.denoise:    
-        # denoise -> 2 passes is more effective
-        y_red = nr.reduce_noise(y=y, sr=sr, stationary=True)
-        y_red = nr.reduce_noise(y=y_red, sr=sr, stationary=False)
-        y = y_red
+        if args.light_noise_removal:
+            y = nr.reduce_noise(
+                y=y,
+                sr=sr,
+                stationary=False,
+                time_constant_s=len(y)/(sr*3),
+                freq_mask_smooth_hz=1000,
+                time_mask_smooth_ms=1000,
+                thresh_n_mult_nonstationary=2,
+                sigmoid_slope_nonstationary=20,
+                chunk_size=int(len(y)/2)
+            )
+        else:
+            # denoise -> 2 passes is more effective
+            y_red = nr.reduce_noise(y=y, sr=sr, stationary=True)
+            y_red = nr.reduce_noise(y=y_red, sr=sr, stationary=False)
+            y = y_red
         
     if args.band_pass:
         # nyquist
@@ -222,6 +235,12 @@ if __name__ == "__main__":
         default=10000,
         help="Filter frequencies above. Default is 11000Hz",
     )
+    parser.add_argument(
+        "--light_noise_removal",
+        default=False,
+        help="Soft noise reduction preset. Default is false. Overrides other noise reduction presets.",
+        action=argparse.BooleanOptionalAction,
+    )
 
     # Segment on Silence args
     parser.add_argument(
@@ -253,7 +272,7 @@ if __name__ == "__main__":
         type=int,
         default=100,
         help="Seek step for segment on silence in ms. Default is 100ms.",
-    )
+    )    
 
     # Parse the arguments
     args = parser.parse_args()
@@ -269,6 +288,12 @@ if __name__ == "__main__":
     
     # Check if out directory exists, if not, create it
     os.makedirs(output_dir, exist_ok=True)
+    
+    if args.light_noise_removal:
+        args.save_no_speech = False
+        args.remove_speech = False
+        args.band_pass = False
+        args.remove_silence = False
         
     if args.save_no_speech:
         if args.no_speech_output_dir is None:
