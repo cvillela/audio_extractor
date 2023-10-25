@@ -286,19 +286,7 @@ if __name__ == "__main__":
         print(f"Getting speech markers from {len(file_paths)} files!")
         voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
                                         use_auth_token=constants.HF_AUTH_TOKEN)
-        
-        # Instantiate voice activity detection model
-        # vad_model = Model.from_pretrained("pyannote/segmentation-3.0", 
-        #                     use_auth_token=constants.HF_AUTH_TOKEN)
-        # voice_detection_pipeline = VoiceActivityDetection(segmentation=vad_model)
-        # HYPER_PARAMETERS = {
-        #     # remove speech regions shorter than that many seconds.
-        #     "min_duration_on": 0.0,
-        #     # fill non-speech regions shorter than that many seconds.
-        #     "min_duration_off": 0.0
-        # }
-        # voice_detection_pipeline.instantiate(HYPER_PARAMETERS)
-        
+
         speech_markers = []
         for f in tqdm(file_paths):
             speech_markers.append(get_speech_markers(f, voice_detection_pipeline))
@@ -314,3 +302,17 @@ if __name__ == "__main__":
     
     end = time()
     print(f"Multiprocess took {end-start} seconds")
+    
+    
+# Instantiate voice activity detection model
+# vad_model = Model.from_pretrained("pyannote/segmentation-3.0", 
+#                     use_auth_token=constants.HF_AUTH_TOKEN)
+# voice_detection_pipeline = VoiceActivityDetection(segmentation=vad_model)
+# HYPER_PARAMETERS = {
+#     # remove speech regions shorter than that many seconds.
+#     "min_duration_on": 0.0,
+#     # fill non-speech regions shorter than that many seconds.
+#     "min_duration_off": 0.0
+# }
+# voice_detection_pipeline.instantiate(HYPER_PARAMETERS)
+        
