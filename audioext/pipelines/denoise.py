@@ -166,6 +166,7 @@ def denoise_single(f, args, se):
         filename = f.split("/")[-1]
         wavfile.write(os.path.join(args.no_speech_output_dir, filename), rate=sr, data=y_crop)
     
+    
 if __name__ == "__main__":
     # Create the argument parser
     parser = argparse.ArgumentParser(description="Parsing Arguments")
@@ -188,7 +189,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_processes",
         type=int,
-        default=multiprocessing.cpu_count(),
+        default=3*int(multiprocessing.cpu_count()/4),
         help="Number of processes to use. Defaults to the number of available CPUs.",
     )
     
@@ -280,20 +281,24 @@ if __name__ == "__main__":
     print(f"There are {args.n_processes} processes.")
     start = time()
     
-    if args.output_dir is None:
-        output_dir = os.path.join(args.samples_dir, "processed/")
-        args.output_dir = output_dir
-    else:
-        output_dir = args.output_dir
-    
-    # Check if out directory exists, if not, create it
-    os.makedirs(output_dir, exist_ok=True)
-    
     if args.light_noise_removal:
         args.save_no_speech = False
         args.remove_speech = False
         args.band_pass = False
         args.remove_silence = False
+    
+    if args.output_dir is None:
+        if args.light_noise_removal:
+            output_dir = os.path.join(args.samples_dir, "soft_denoise/")
+            args.output_dir = output_dir    
+        else:
+            output_dir = os.path.join(args.samples_dir, "processed/")
+            args.output_dir = output_dir
+    else:
+        output_dir = args.output_dir
+    
+    # Check if out directory exists, if not, create it
+    os.makedirs(output_dir, exist_ok=True)
         
     if args.save_no_speech:
         if args.no_speech_output_dir is None:
@@ -332,17 +337,4 @@ if __name__ == "__main__":
     
     end = time()
     print(f"Multiprocess took {end-start} seconds")
-    
-    
-# Instantiate voice activity detection model
-# vad_model = Model.from_pretrained("pyannote/segmentation-3.0", 
-#                     use_auth_token=constants.HF_AUTH_TOKEN)
-# voice_detection_pipeline = VoiceActivityDetection(segmentation=vad_model)
-# HYPER_PARAMETERS = {
-#     # remove speech regions shorter than that many seconds.
-#     "min_duration_on": 0.0,
-#     # fill non-speech regions shorter than that many seconds.
-#     "min_duration_off": 0.0
-# }
-# voice_detection_pipeline.instantiate(HYPER_PARAMETERS)
         
