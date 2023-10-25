@@ -14,7 +14,6 @@ import multiprocessing
 from multiprocessing import Pool
 
 import noisereduce as nr
-from pydub.silence import split_on_silence
 from pydub.effects import compress_dynamic_range
 from scipy.io import wavfile
 from ..audio.audio_processer import (
@@ -24,6 +23,8 @@ from ..audio.audio_processer import (
     bandpass_filter_signal,
     get_freq_domain,
     normalize_unit,
+    get_silence_ranges,
+    split_on_silence
 )
 
 from ..audio.audio_utils import (
@@ -49,37 +50,7 @@ def get_speech_markers(f, voice_detection_pipeline):
         for speech in output.get_timeline().support():
             se.append([speech.start*1000, speech.end*1000])
         return se
-
-
-def remove_silence(y, sr):
     
-    y = normalize_unit(y)
-    audio = ndarray32_to_audiosegment(y, frame_rate=sr)
-    audio = normalize_loudness(audio)
-    audio = compress_dynamic_range(audio)
-    audio_nonsilent = 0
-    curr_thresh = args.silence_thresh
-
-    count = 0
-    while audio_nonsilent == 0 and count <= 2:
-        audio_chunks = split_on_silence(
-            audio,
-            min_silence_len=args.min_silence_len,
-            silence_thresh=curr_thresh,
-            keep_silence=args.keep_silence,
-            seek_step=args.seek_step,
-        )
-        audio_nonsilent = sum(audio_chunks)
-        curr_thresh -= 10
-        count+=1
-    if audio_nonsilent == 0:
-        print(f"Cant remove silence in file {f}")
-        with open("errors.txt", "a") as err_file:
-            err_file.write(f"file {f}-> remove silence failed." + os.linesep)
-    else:
-        audio_nonsilent = normalize_loudness(audio_nonsilent)
-        y = audiosegment_to_ndarray_32(audio_nonsilent)
-        return y
 
 def denoise_single(f, args, se):
     print(f"Processing {f}")   
@@ -87,6 +58,8 @@ def denoise_single(f, args, se):
     try:    
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
+        audio = normalize_loudness(audio)
+        audio = compress_dynamic_range(audio)
     except Exception as e:
         print(f"Found error {e} in file {f}")
         with open("errors.txt", "a") as err_file:
@@ -128,24 +101,57 @@ def denoise_single(f, args, se):
 
     # remove silence
     if args.remove_silence:
-        y_new = remove_silence(y, sr)
-        if y_new is not None:
-            y = y_new
+        y = normalize_unit(y)
+        audio_prep = ndarray32_to_audiosegment(y, frame_rate=sr)
+        audio_prep = normalize_loudness(audio_prep)
+        audio_prep = compress_dynamic_range(audio_prep)
+        
+        silence_ranges = []
+        curr_thresh = args.silence_thresh
+        count = 0
+    
+        while silence_ranges == [] and count <= 2:
+            silence_ranges = get_silence_ranges(
+                audio_prep,
+                min_silence_len=args.min_silence_len,
+                silence_thresh=curr_thresh,
+                keep_silence=args.keep_silence,
+                seek_step=args.seek_step,
+            )
+            curr_thresh -= 10
+            count += 1
             
-        # save no speech and no denoise
-        if args.save_no_speech:
-            y_no_speech = audiosegment_to_ndarray_32(no_speech)
-            y_new = remove_silence(y_no_speech, sr)
-            if y_new is not None:
-                y_no_speech = y_new
-            y_no_speech = normalize_unit(y_no_speech)
-            filename = f.split("/")[-1]
-            wavfile.write(os.path.join(args.no_speech_output_dir, filename), rate=sr, data=y_no_speech)    
+        if silence_ranges == []:
+            print(f"Cant remove silence in file {f}")
+            audio_nonsilent = audio_prep
+            with open("errors.txt", "a") as err_file:
+                err_file.write(f"file {f}-> remove silence failed." + os.linesep)
+        else:
+            audio_nonsilent = split_on_silence(
+                audio_prep,
+                silence_ranges,
+            )
+            audio_nonsilent = normalize_loudness(sum(audio_nonsilent))
+            y = audiosegment_to_ndarray_32(audio_nonsilent)
+            
+            # save original cropped
+            if args.save_no_speech:
+                original_crop = split_on_silence(
+                    audio,
+                    silence_ranges,
+                )
+                original_crop = normalize_loudness(sum(original_crop))
+                y_crop = audiosegment_to_ndarray_32(original_crop)        
             
     # normalize unit and export
     y = normalize_unit(y)
     filename = f.split("/")[-1]
     wavfile.write(os.path.join(args.output_dir, filename), rate=sr, data=y)
+    
+    if args.save_no_speech:
+        y_crop = normalize_unit(y_crop)
+        filename = f.split("/")[-1]
+        wavfile.write(os.path.join(args.no_speech_output_dir, filename), rate=sr, data=y_crop)
     
 if __name__ == "__main__":
     # Create the argument parser
