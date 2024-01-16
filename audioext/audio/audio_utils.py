@@ -41,6 +41,84 @@ def get_len_wavs(file_paths):
     return dur / (1000 * 60 * 60)  # in hours
 
 
+def get_audio_segment_size_gb(audio_segment):
+    duration_seconds = len(audio_segment) / 1000  # Convert milliseconds to seconds
+    frame_rate = audio_segment.frame_rate
+    sample_width = audio_segment.sample_width
+    num_channels = audio_segment.channels
+
+    size_bytes = duration_seconds * frame_rate * sample_width * num_channels
+    size_gb = size_bytes / (1024 ** 3)  # Convert bytes to gigabytes
+
+    return size_gb
+
+
+def linear_crossfade(audio1, audio2, crossfade_duration, sample_rate):
+    """
+    Crossfades two audio signals.
+
+    Parameters:
+    audio1 (numpy array): First audio waveform.
+    audio2 (numpy array): Second audio waveform.
+    crossfade_duration (float): Crossfade duration in seconds.
+    sample_rate (int): Sample rate of the audio signals.
+
+    Returns:
+    numpy array: Crossfaded audio signal.
+    """
+
+    # Number of samples over which to crossfade
+    crossfade_samples = int(crossfade_duration * sample_rate)
+
+    assert audio1.ndim >= 2 and audio2.ndim >= 2, "Array must be at least 2D, of shape [N_CHANNELS, N_SAMPLES]"
+    assert audio1.shape[0] == audio2.shape[0], "Arrays must have the same number of channels."
+    
+    n_channels = audio1.shape[0]
+
+    # Ensure audio1 is long enough for crossfade
+    if len(audio1) < crossfade_samples:
+        raise ValueError("First audio is too short for the specified crossfade duration.")
+    # Ensure audio2 is long enough for crossfade
+    if len(audio2) < crossfade_samples:
+        raise ValueError("Second audio is too short for the specified crossfade duration.")
+
+    # Create multichannel fade windows
+    fade_out_curve = np.linspace(1, 0, crossfade_samples)
+    fade_out_curve = np.array([fade_out_curve] * n_channels)
+
+    fade_in_curve = np.linspace(0, 1, crossfade_samples)
+    fade_in_curve = np.array([fade_in_curve] * n_channels)
+    
+    # Apply the crossfade window
+    audio1[:, -crossfade_samples:] *= fade_out_curve
+    audio2[:, :crossfade_samples] *= fade_in_curve
+
+    # Append the remainder of the second audio signal
+    return np.concatenate((audio1, audio2), axis=1)
+
+
+def remove_intervals(data, intervals):
+    """
+    Remove intervals from a 2D numpy array along axis=1.
+
+    :param data: 2D numpy array of shape [N-Channels, N_Samples]
+    :param intervals: List of [start, end] pairs defining intervals to remove
+    :return: 2D numpy array with specified intervals removed
+    """
+    # Number of samples
+    num_samples = data.shape[1]
+
+    # Create an initial mask filled with True
+    mask = np.ones(num_samples, dtype=bool)
+
+    # Update the mask to False for indices in the specified intervals
+    for start, end in intervals:
+        mask[start:end] = False
+
+    # Apply the mask to the data
+    return data[:, mask]
+
+
 def plot_spectrogram(
     Y,
     sr,
