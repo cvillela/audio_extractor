@@ -53,7 +53,7 @@ def get_audio_segment_size_gb(audio_segment):
     return size_gb
 
 
-def linear_crossfade(audio1, audio2, crossfade_duration, sample_rate):
+def linear_crossfade(a1, a2, crossfade_duration, sample_rate):
     """
     Crossfades two audio signals.
 
@@ -66,35 +66,43 @@ def linear_crossfade(audio1, audio2, crossfade_duration, sample_rate):
     Returns:
     numpy array: Crossfaded audio signal.
     """
-
+    
     # Number of samples over which to crossfade
     crossfade_samples = int(crossfade_duration * sample_rate)
 
-    assert audio1.ndim >= 2 and audio2.ndim >= 2, "Array must be at least 2D, of shape [N_CHANNELS, N_SAMPLES]"
-    assert audio1.shape[0] == audio2.shape[0], "Arrays must have the same number of channels."
+    assert a1.ndim >= 2 and a2.ndim >= 2, "Array must be at least 2D, of shape [N_CHANNELS, N_SAMPLES]"
+    assert a1.shape[0] == a2.shape[0], "Arrays must have the same number of channels."
     
-    n_channels = audio1.shape[0]
+    n_channels = a1.shape[0]
 
     # Ensure audio1 is long enough for crossfade
-    if len(audio1) < crossfade_samples:
-        raise ValueError("First audio is too short for the specified crossfade duration.")
+    if len(a1[0]) < crossfade_samples:
+        return a2
     # Ensure audio2 is long enough for crossfade
-    if len(audio2) < crossfade_samples:
-        raise ValueError("Second audio is too short for the specified crossfade duration.")
-
+    if len(a2[0]) < crossfade_samples:
+        return a1
+    
     # Create multichannel fade windows
     fade_out_curve = np.linspace(1, 0, crossfade_samples)
-    fade_out_curve = np.array([fade_out_curve] * n_channels)
+    fade_out_curve = np.array([fade_out_curve] * n_channels).astype(a1[0].dtype)
 
     fade_in_curve = np.linspace(0, 1, crossfade_samples)
-    fade_in_curve = np.array([fade_in_curve] * n_channels)
-    
-    # Apply the crossfade window
-    audio1[:, -crossfade_samples:] *= fade_out_curve
-    audio2[:, :crossfade_samples] *= fade_in_curve
+    fade_in_curve = np.array([fade_in_curve] * n_channels).astype(a2[0].dtype)
 
-    # Append the remainder of the second audio signal
-    return np.concatenate((audio1, audio2), axis=1)
+    # end of input audio will fade out on last crossfade samples
+    a1[:, -crossfade_samples:] = np.multiply(a1[:, -crossfade_samples:], fade_out_curve)
+    # fade in on first crossfade samples of a2
+    fade_in = np.multiply(a2[:, :crossfade_samples], fade_in_curve)
+    # sum faded in audio from a2 to a1
+    a1[:, -crossfade_samples:] = np.add(a1[:, -crossfade_samples:], fade_in,)
+
+    # remove first crossfade samples of a2
+    
+    a2 = a2[:, crossfade_samples:]
+    
+    # return concatenated a1 and a2
+    return np.concatenate((a1, a2), axis=1)
+
 
 
 def remove_intervals(data, intervals):
