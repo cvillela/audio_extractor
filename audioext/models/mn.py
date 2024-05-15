@@ -18,7 +18,7 @@ def extract_one_track(audio_samples, wrapper):
     if audio_tensor.shape[1] < 1024:
         print("Segment is less than PAD/2, discarding!")
         return
-    
+
     embs = mn40_all_se_mel_avgs.get_scene_embeddings(audio_tensor, wrapper)
     embs = embs.cpu().numpy()
     embs = np.mean(embs, axis=0)
@@ -61,7 +61,7 @@ def extract_full_track(
         if file_len_s <= 1:
             print("skipping file: ", f, " because it is too short")
             continue
-        
+
         segment_kwargs["segment_length_s"] = get_seg_len_fulltrack(
             file_len_s, max_len=MN_MAX_SEG_LEN_S
         )
@@ -77,7 +77,7 @@ def extract_full_track(
         if embs is None:
             print(f"Segments for file {f} are too small!")
             continue
-        
+
         # add curr row idx to metadata
         curr_meta[0]["idx"] = idx
         curr_meta[0]["file_path"] = f

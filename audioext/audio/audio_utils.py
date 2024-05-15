@@ -48,7 +48,7 @@ def get_audio_segment_size_gb(audio_segment):
     num_channels = audio_segment.channels
 
     size_bytes = duration_seconds * frame_rate * sample_width * num_channels
-    size_gb = size_bytes / (1024 ** 3)  # Convert bytes to gigabytes
+    size_gb = size_bytes / (1024**3)  # Convert bytes to gigabytes
 
     return size_gb
 

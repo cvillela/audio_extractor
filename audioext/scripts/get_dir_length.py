@@ -3,6 +3,7 @@ import argparse
 import os
 from pydub import AudioSegment
 
+
 def list_wavs_from_dir(path, walk=True):
     file_paths = []
 
@@ -28,6 +29,7 @@ def list_wavs_from_dir(path, walk=True):
 
     return file_paths
 
+
 def get_len_wavs(file_paths):
     dur = 0
     for f in file_paths:
@@ -36,6 +38,7 @@ def get_len_wavs(file_paths):
 
     return dur / (1000 * 60 * 60)  # in hours
 
+
 if __name__ == "__main__":
     # Create the argument parser
     parser = argparse.ArgumentParser(description="Parsing Arguments")
@@ -43,7 +46,9 @@ if __name__ == "__main__":
         "--samples_dir", type=str, default="", help="Path to directory wav samples."
     )
     parser.add_argument(
-        "--walk", default=False, action=argparse.BooleanOptionalAction,
+        "--walk",
+        default=False,
+        action=argparse.BooleanOptionalAction,
     )
     args = parser.parse_args()
 

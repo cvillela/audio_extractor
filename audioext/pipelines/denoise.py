@@ -24,7 +24,7 @@ from ..audio.audio_processer import (
     get_freq_domain,
     normalize_unit,
     get_silence_ranges,
-    split_on_silence
+    split_on_silence,
 )
 
 from ..audio.audio_utils import (
@@ -37,25 +37,25 @@ from ..audio.audio_utils import (
 
 from ..constants import constants
 
+
 def denoise_wrapper(args_tuple):
     # Unpack the tuple
     f, args, se = args_tuple
     return denoise_single(f, args, se)
 
 
-def get_speech_markers(f, voice_detection_pipeline):      
-        
-        output = voice_detection_pipeline(f)        
-        se = []
-        for speech in output.get_timeline().support():
-            se.append([speech.start*1000, speech.end*1000])
-        return se
-    
+def get_speech_markers(f, voice_detection_pipeline):
+    output = voice_detection_pipeline(f)
+    se = []
+    for speech in output.get_timeline().support():
+        se.append([speech.start * 1000, speech.end * 1000])
+    return se
+
 
 def denoise_single(f, args, se):
-    print(f"Processing {f}")   
-    
-    try:    
+    print(f"Processing {f}")
+
+    try:
         audio = AudioSegment.from_file(f)
         audio = audio.set_channels(1)
         audio = normalize_loudness(audio)
@@ -65,41 +65,41 @@ def denoise_single(f, args, se):
         with open("errors.txt", "a") as err_file:
             err_file.write(f"file {f}-> {str(e)}" + os.linesep)
         return
-    
+
     # remove speech
     if args.remove_speech:
         start_pos = 0
-        no_speech = AudioSegment.silent(duration=0)    
+        no_speech = AudioSegment.silent(duration=0)
         for start, end in se:
-            no_speech = no_speech+audio[start_pos:start]
+            no_speech = no_speech + audio[start_pos:start]
             start_pos = end
-            
-        no_speech = no_speech+audio[start_pos:]
+
+        no_speech = no_speech + audio[start_pos:]
         audio = no_speech
-        
+
     # np audio
     sr = audio.frame_rate
     y = audiosegment_to_ndarray_32(audio)
 
-    if args.denoise:    
+    if args.denoise:
         if args.light_noise_removal:
             y = nr.reduce_noise(
                 y=y,
                 sr=sr,
                 stationary=False,
-                time_constant_s=len(y)/(sr*3),
+                time_constant_s=len(y) / (sr * 3),
                 freq_mask_smooth_hz=1000,
                 time_mask_smooth_ms=1000,
                 thresh_n_mult_nonstationary=2,
                 sigmoid_slope_nonstationary=20,
-                chunk_size=int(len(y)/2)
+                chunk_size=int(len(y) / 2),
             )
         else:
             # denoise -> 2 passes is more effective
             y_red = nr.reduce_noise(y=y, sr=sr, stationary=True)
             y_red = nr.reduce_noise(y=y_red, sr=sr, stationary=False)
             y = y_red
-        
+
     if args.band_pass:
         # nyquist
         high = args.high
@@ -118,11 +118,11 @@ def denoise_single(f, args, se):
         audio_prep = ndarray32_to_audiosegment(y, frame_rate=sr)
         audio_prep = normalize_loudness(audio_prep)
         audio_prep = compress_dynamic_range(audio_prep)
-        
+
         silence_ranges = []
         curr_thresh = args.silence_thresh
         count = 0
-    
+
         while silence_ranges == [] and count <= 2:
             silence_ranges = get_silence_ranges(
                 audio_prep,
@@ -133,7 +133,7 @@ def denoise_single(f, args, se):
             )
             curr_thresh -= 10
             count += 1
-            
+
         if silence_ranges == []:
             print(f"Cant remove silence in file {f}")
             audio_nonsilent = audio_prep
@@ -146,7 +146,7 @@ def denoise_single(f, args, se):
             )
             audio_nonsilent = normalize_loudness(sum(audio_nonsilent))
             y = audiosegment_to_ndarray_32(audio_nonsilent)
-            
+
             # save original cropped
             if args.save_no_speech:
                 original_crop = split_on_silence(
@@ -154,19 +154,21 @@ def denoise_single(f, args, se):
                     silence_ranges,
                 )
                 original_crop = normalize_loudness(sum(original_crop))
-                y_crop = audiosegment_to_ndarray_32(original_crop)        
-            
+                y_crop = audiosegment_to_ndarray_32(original_crop)
+
     # normalize unit and export
     y = normalize_unit(y)
     filename = f.split("/")[-1]
     wavfile.write(os.path.join(args.output_dir, filename), rate=sr, data=y)
-    
+
     if args.save_no_speech:
         y_crop = normalize_unit(y_crop)
         filename = f.split("/")[-1]
-        wavfile.write(os.path.join(args.no_speech_output_dir, filename), rate=sr, data=y_crop)
-    
-    
+        wavfile.write(
+            os.path.join(args.no_speech_output_dir, filename), rate=sr, data=y_crop
+        )
+
+
 if __name__ == "__main__":
     # Create the argument parser
     parser = argparse.ArgumentParser(description="Parsing Arguments")
@@ -189,17 +191,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_processes",
         type=int,
-        default=3*int(multiprocessing.cpu_count()/4),
+        default=3 * int(multiprocessing.cpu_count() / 4),
         help="Number of processes to use. Defaults to the number of available CPUs.",
     )
-    
+
     parser.add_argument(
         "--save_no_speech",
         default=False,
         help="Wether to save NO SPEECH audio. Defaults to false",
         action=argparse.BooleanOptionalAction,
     )
-    
+
     # remove_speech
     parser.add_argument(
         "--remove_speech",
@@ -273,33 +275,33 @@ if __name__ == "__main__":
         type=int,
         default=100,
         help="Seek step for segment on silence in ms. Default is 100ms.",
-    )    
+    )
 
     # Parse the arguments
     args = parser.parse_args()
-    
+
     print(f"There are {args.n_processes} processes.")
     start = time()
-    
+
     if args.light_noise_removal:
         args.save_no_speech = False
         args.remove_speech = False
         args.band_pass = False
         args.remove_silence = False
-    
+
     if args.output_dir is None:
         if args.light_noise_removal:
             output_dir = os.path.join(args.samples_dir, "soft_denoise/")
-            args.output_dir = output_dir    
+            args.output_dir = output_dir
         else:
             output_dir = os.path.join(args.samples_dir, "processed/")
             args.output_dir = output_dir
     else:
         output_dir = args.output_dir
-    
+
     # Check if out directory exists, if not, create it
     os.makedirs(output_dir, exist_ok=True)
-        
+
     if args.save_no_speech:
         if args.no_speech_output_dir is None:
             no_speech_output_dir = os.path.join(args.samples_dir, "no_speech/")
@@ -314,27 +316,27 @@ if __name__ == "__main__":
     if args.remove_speech:
         start_speech = time()
         print(f"Getting speech markers from {len(file_paths)} files!")
-        voice_detection_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
-                                        use_auth_token=constants.HF_AUTH_TOKEN)
+        voice_detection_pipeline = Pipeline.from_pretrained(
+            "pyannote/voice-activity-detection", use_auth_token=constants.HF_AUTH_TOKEN
+        )
 
         speech_markers = []
         for f in tqdm(file_paths):
             speech_markers.append(get_speech_markers(f, voice_detection_pipeline))
-        print("Done in ", time()-start_speech, "seconds!")
+        print("Done in ", time() - start_speech, "seconds!")
     else:
         speech_markers = [[] for _ in file_paths]
-        
+
     # Create a list of argument tuples
     args_list = [(f, args, se) for f, se in zip(file_paths, speech_markers)]
 
     start_denoise = time()
     print("Starting Denoise!")
-    
+
     with multiprocessing.Pool(processes=args.n_processes) as pool:
         results = pool.map(denoise_wrapper, args_list)
-    
-    print("Done in ", time()-start_denoise, "seconds!")
-    
+
+    print("Done in ", time() - start_denoise, "seconds!")
+
     end = time()
     print(f"Multiprocess took {end-start} seconds")
-        
