@@ -40,7 +40,7 @@ def merge_intervals(intervals):
     return merged
 
 
-def denoise_single(f, args, vad_pipeline):
+def remove_speech_single(f, args, vad_pipeline):
     print(f"Processing {f}")
 
     try:
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     voice_detection_pipeline.instantiate(HYPER_PARAMETERS)
 
     for f in tqdm(file_paths):
-        denoise_single(f, args, vad_pipeline=voice_detection_pipeline)
+        remove_speech_single(f, args, vad_pipeline=voice_detection_pipeline)
 
     end_speech = time()
     print(f"Multiprocess took {end_speech-start_speech} seconds")
